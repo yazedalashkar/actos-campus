@@ -7,8 +7,6 @@ import { verifyUserFromRequest } from "@/lib/auth-server";
 const apiKey = (process.env.GEMINI_API_KEY || "").trim().replace(/^["']|["']$/g, "");
 const ai = new GoogleGenAI({ apiKey });
 
-export const preferredRegion = "iad1";
-
 const RequestSchema = z.object({
   workspace_id: z.string().min(1),
 });
@@ -133,7 +131,7 @@ export async function POST(req: Request) {
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -145,7 +143,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "لم يُرجع النموذج تقريراً" }, { status: 502 });
     }
 
-    const parsed = WeeklyReportSchema.safeParse(JSON.parse(rawText));
+    const cleanJson = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    const parsed = WeeklyReportSchema.safeParse(JSON.parse(cleanJson));
     if (!parsed.success) {
       return NextResponse.json({ error: "تنسيق التقرير غير صالح" }, { status: 422 });
     }
@@ -161,5 +160,6 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("Weekly Report Error:", error);
-return NextResponse.json({ error: `تعذر توليد التقرير: ${details}`, details }, { status: 500 });  }
+    return NextResponse.json({ error: `تعذر توليد التقرير: ${details}`, details }, { status: 500 });
+  }
 }

@@ -5,8 +5,6 @@ import { ProposedActionCardSchema, ProposedActionCard } from "@/lib/schemas/acti
 const apiKey = (process.env.GEMINI_API_KEY || "").trim().replace(/^["']|["']$/g, "");
 const ai = new GoogleGenAI({ apiKey });
 
-export const preferredRegion = "iad1";
-
 function buildSmartLocalMock(message: string, knowledgeRules: string): ProposedActionCard {
   const m = message.toLowerCase();
 
@@ -156,7 +154,7 @@ export async function POST(req: Request) {
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       contents: message,
       config: {
         systemInstruction,
@@ -169,7 +167,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "لم يُرجع النموذج استجابة" }, { status: 502 });
     }
 
-    const parsed = ProposedActionCardSchema.safeParse(JSON.parse(rawText));
+    const cleanJson = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    const parsed = ProposedActionCardSchema.safeParse(JSON.parse(cleanJson));
     if (!parsed.success) {
       return NextResponse.json(
         { error: "مخرجات الذكاء الاصطناعي لم تطابق المخطط", details: parsed.error.flatten() },
@@ -181,5 +180,6 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("AI Propose Error:", error);
-return NextResponse.json({ error: `حدث خطأ أثناء المعالجة: ${details}`, details }, { status: 500 });  }
+    return NextResponse.json({ error: `حدث خطأ أثناء المعالجة: ${details}`, details }, { status: 500 });
+  }
 }
