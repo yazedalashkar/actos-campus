@@ -4,7 +4,8 @@ import { GoogleGenAI } from "@google/genai";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyUserFromRequest } from "@/lib/auth-server";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const apiKey = (process.env.GEMINI_API_KEY || "").trim().replace(/^["']|["']$/g, "");
+const ai = new GoogleGenAI({ apiKey });
 
 export const preferredRegion = "iad1";
 
@@ -132,7 +133,7 @@ export async function POST(req: Request) {
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -160,6 +161,5 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("Weekly Report Error:", error);
-    return NextResponse.json({ error: "تعذر توليد التقرير الاستراتيجي", details }, { status: 500 });
-  }
+return NextResponse.json({ error: `تعذر توليد التقرير: ${details}`, details }, { status: 500 });  }
 }

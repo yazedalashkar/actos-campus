@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { ProposedActionCardSchema, ProposedActionCard } from "@/lib/schemas/action-cards";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const apiKey = (process.env.GEMINI_API_KEY || "").trim().replace(/^["']|["']$/g, "");
+const ai = new GoogleGenAI({ apiKey });
 
 export const preferredRegion = "iad1";
 
@@ -155,7 +156,7 @@ export async function POST(req: Request) {
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-2.5-flash",
       contents: message,
       config: {
         systemInstruction,
@@ -180,6 +181,5 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("AI Propose Error:", error);
-    return NextResponse.json({ error: "حدث خطأ أثناء المعالجة", details }, { status: 500 });
-  }
+return NextResponse.json({ error: `حدث خطأ أثناء المعالجة: ${details}`, details }, { status: 500 });  }
 }
