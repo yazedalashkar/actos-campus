@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import AdminReportPanel from "@/components/AdminReportPanel";
 import WorkspaceChat from "@/components/WorkspaceChat";
 import WorkspaceSettingsModal from "@/components/WorkspaceSettingsModal";
@@ -27,7 +28,6 @@ import { auth, db } from "@/lib/firebase";
 import ActionCardFeed, { LiveActionCard, ResourceSlot } from "@/components/ActionCardFeed";
 import type { ProposedActionCard } from "@/lib/schemas/action-cards";
 import {
-  Sparkles,
   LogOut,
   Plus,
   Users,
@@ -514,8 +514,18 @@ export default function HomePage() {
 
   if (loadingAuth) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-950 text-cyan-400">
-        جاري تحميل Actos Campus...
+      <main className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-950 text-cyan-400">
+        <div className="w-14 h-14 rounded-2xl bg-slate-900/80 border border-cyan-400/25 p-2 flex items-center justify-center shadow-lg shadow-cyan-500/15 animate-pulse">
+          <Image
+            src="/icon.svg"
+            alt="Actos Campus"
+            width={40}
+            height={40}
+            unoptimized
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <span className="text-sm font-medium">جاري تحميل Actos Campus...</span>
       </main>
     );
   }
@@ -524,12 +534,19 @@ export default function HomePage() {
     return (
       <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-indigo-950/40 to-slate-950">
         <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-2xl">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 rounded-2xl bg-cyan-500/20 text-cyan-400">
-              <Sparkles className="w-6 h-6" />
+          <div className="flex items-center gap-3.5 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-slate-900/90 border border-cyan-400/30 p-1.5 flex items-center justify-center shadow-lg shadow-cyan-500/15 overflow-hidden shrink-0">
+              <Image
+                src="/icon.svg"
+                alt="Actos Campus Logo"
+                width={40}
+                height={40}
+                unoptimized
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Actos Campus</h1>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Actos Campus</h1>
               <p className="text-xs text-slate-400">منصة التواصل القابل للتنفيذ</p>
             </div>
           </div>
@@ -638,9 +655,21 @@ export default function HomePage() {
       {/* الشريط الجانبي */}
       <aside className="w-full md:w-80 border-b md:border-b-0 md:border-l border-white/10 bg-slate-900/50 p-5 flex flex-col gap-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-cyan-400" />
-            <span className="font-bold text-lg">Actos Campus</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-slate-950/90 border border-cyan-400/30 p-1 flex items-center justify-center shadow-md shadow-cyan-500/15 overflow-hidden shrink-0">
+              <Image
+                src="/icon.svg"
+                alt="Actos Campus"
+                width={32}
+                height={32}
+                unoptimized
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="leading-tight">
+              <span className="font-bold text-base text-white block">Actos Campus</span>
+              <span className="text-[10px] text-cyan-400/80">التواصل القابل للتنفيذ</span>
+            </div>
           </div>
           <button
             onClick={() => signOut(auth)}
