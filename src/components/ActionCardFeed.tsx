@@ -187,7 +187,7 @@ export default function ActionCardFeed({
 
   if (cards.length === 0) {
     return (
-      <div className="p-6 rounded-3xl border border-dashed border-white/10 text-center text-xs text-slate-500">
+      <div className="p-6 rounded-2xl sm:rounded-3xl border border-dashed border-white/10 text-center text-xs text-slate-500">
         لا توجد بطاقات فعل منشورة في هذه المساحة بعد. اكتب أمراً في الشريط بالأسفل لتوليد أول بطاقة.
       </div>
     );
@@ -207,10 +207,10 @@ export default function ActionCardFeed({
           <button
             type="button"
             onClick={onExport}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 text-[11px] font-bold hover:bg-emerald-500/25 transition"
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 text-[11px] font-bold hover:bg-emerald-500/25 transition"
             title="تصدير كشف Excel / CSV"
           >
-            <Download className="w-3 h-3" /> تصدير CSV
+            <Download className="w-3 h-3" /> CSV
           </button>
         )}
 
@@ -219,7 +219,7 @@ export default function ActionCardFeed({
             type="button"
             disabled={isBusy}
             onClick={() => onManageCard(card.id, "toggle_close")}
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition disabled:opacity-50 ${
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition disabled:opacity-50 ${
               card.is_closed
                 ? "bg-amber-500/20 text-amber-300 border-amber-500/30 hover:bg-amber-500/30"
                 : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"
@@ -228,7 +228,7 @@ export default function ActionCardFeed({
           >
             {card.is_closed ? (
               <>
-                <Unlock className="w-3 h-3" /> إعادة فتح
+                <Unlock className="w-3 h-3" /> فتح
               </>
             ) : (
               <>
@@ -247,14 +247,14 @@ export default function ActionCardFeed({
                 setConfirmDeleteId(null);
                 onManageCard(card.id, "delete");
               }}
-              className="px-2.5 py-1 rounded-lg bg-rose-500 text-white text-[11px] font-bold hover:bg-rose-400 disabled:opacity-50"
+              className="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[11px] font-bold hover:bg-rose-400 disabled:opacity-50"
             >
-              تأكيد الحذف
+              تأكيد
             </button>
             <button
               type="button"
               onClick={() => setConfirmDeleteId(null)}
-              className="px-2 py-1 rounded-lg bg-white/5 text-slate-300 text-[11px] hover:bg-white/10"
+              className="px-2 py-1.5 rounded-lg bg-white/5 text-slate-300 text-[11px] hover:bg-white/10"
             >
               إلغاء
             </button>
@@ -275,7 +275,7 @@ export default function ActionCardFeed({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5 sm:space-y-4">
       {cards.map((card) => {
         const isBusy = interactingCardId === card.id;
         const isClosed = Boolean(card.is_closed);
@@ -286,17 +286,17 @@ export default function ActionCardFeed({
           return (
             <div
               key={card.id}
-              className={`rounded-3xl border bg-slate-900/70 p-6 space-y-4 ${
+              className={`rounded-2xl sm:rounded-3xl border bg-slate-900/70 p-4 sm:p-6 space-y-4 ${
                 isClosed ? "border-white/10 opacity-85" : "border-cyan-500/25"
               }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 text-xs font-bold">
-                    <Calendar className="w-3.5 h-3.5" /> بطاقة حجز جلسات
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 text-[11px] sm:text-xs font-bold">
+                    <Calendar className="w-3.5 h-3.5" /> حجز جلسات
                   </span>
                   {isClosed && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold">
                       <Lock className="w-3 h-3" /> مغلقة
                     </span>
                   )}
@@ -309,11 +309,15 @@ export default function ActionCardFeed({
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-white">{card.payload.session_group_title}</h3>
-                <p className="text-sm text-slate-400 mt-0.5">{card.summary}</p>
+                <h3 className="text-base sm:text-lg font-bold text-white">
+                  {card.payload.session_group_title}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 mt-0.5 leading-relaxed">
+                  {card.summary}
+                </p>
               </div>
 
-              <div className="grid sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 {cardSlots.map((slot) => {
                   const isBooked = slot.booked_users?.includes(currentUserId);
                   const isFull = slot.booked_count >= slot.capacity;
@@ -322,7 +326,7 @@ export default function ActionCardFeed({
                   return (
                     <div
                       key={slot.id}
-                      className="p-4 rounded-2xl bg-slate-950/80 border border-white/10 flex flex-col justify-between gap-3"
+                      className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/80 border border-white/10 flex flex-col justify-between gap-3"
                     >
                       <div>
                         <p className="font-bold text-sm text-cyan-300">{slot.title}</p>
@@ -357,7 +361,7 @@ export default function ActionCardFeed({
                             type="button"
                             onClick={() => onCancelSlot(slot.id)}
                             disabled={isSlotLoading}
-                            className="px-2.5 py-2 rounded-xl text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/25 hover:bg-rose-500/25 transition disabled:opacity-50"
+                            className="px-3 py-2 rounded-xl text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/25 hover:bg-rose-500/25 transition disabled:opacity-50"
                             title="إلغاء حجزك وتحرير المقعد"
                           >
                             {isSlotLoading ? "..." : "إلغاء"}
@@ -368,7 +372,7 @@ export default function ActionCardFeed({
                           type="button"
                           onClick={() => onBookSlot(slot.id)}
                           disabled={isClosed || isFull || isSlotLoading}
-                          className={`w-full py-2 rounded-xl text-xs font-bold transition ${
+                          className={`w-full py-2.5 sm:py-2 rounded-xl text-xs font-bold transition ${
                             isClosed || isFull
                               ? "bg-slate-800 text-slate-500 cursor-not-allowed"
                               : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
@@ -398,22 +402,22 @@ export default function ActionCardFeed({
           return (
             <div
               key={card.id}
-              className={`rounded-3xl border bg-slate-900/70 p-6 space-y-4 ${
+              className={`rounded-2xl sm:rounded-3xl border bg-slate-900/70 p-4 sm:p-6 space-y-4 ${
                 isClosed ? "border-white/10 opacity-85" : "border-indigo-500/30"
               }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold">
-                    <FileUp className="w-3.5 h-3.5" /> بطاقة تسليم مشروع / وظيفة
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[11px] sm:text-xs font-bold">
+                    <FileUp className="w-3.5 h-3.5" /> تسليم مشروع
                   </span>
                   {isClosed && (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold">
-                      <Lock className="w-3 h-3" /> باب التسليم مغلق
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold">
+                      <Lock className="w-3 h-3" /> مغلق
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1 text-xs text-amber-300">
-                    <Clock className="w-3.5 h-3.5" /> آخر موعد:{" "}
+                  <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-amber-300">
+                    <Clock className="w-3.5 h-3.5" />{" "}
                     <span dir="ltr">{formatDate(card.payload.due_at)}</span>
                   </span>
                 </div>
@@ -422,14 +426,18 @@ export default function ActionCardFeed({
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-white">{card.payload.assignment_title}</h3>
-                <p className="text-sm text-slate-300 mt-1">{card.payload.description}</p>
+                <h3 className="text-base sm:text-lg font-bold text-white">
+                  {card.payload.assignment_title}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                  {card.payload.description}
+                </p>
               </div>
 
               {mySub && (
                 <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs flex flex-wrap items-center justify-between gap-2">
                   <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
                     تم التسليم {mySub.is_late ? "(متأخر)" : "في الوقت"} —{" "}
                     <span dir="ltr">{formatDate(mySub.submitted_at)}</span>
                   </span>
@@ -460,7 +468,7 @@ export default function ActionCardFeed({
                       setNotes((prev) => ({ ...prev, [card.id]: "" }));
                     }
                   }}
-                  className="grid sm:grid-cols-12 gap-2"
+                  className="grid grid-cols-1 sm:grid-cols-12 gap-2"
                 >
                   <input
                     type="url"
@@ -503,7 +511,7 @@ export default function ActionCardFeed({
                           key={idx}
                           className="p-2.5 rounded-xl bg-slate-950/70 border border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs"
                         >
-                          <div>
+                          <div className="min-w-0">
                             <span className="font-bold text-white">{s.user_name}</span>
                             {s.note && <span className="text-slate-400"> — {s.note}</span>}
                             <span className="text-[11px] text-slate-500 block" dir="ltr">
@@ -514,7 +522,7 @@ export default function ActionCardFeed({
                             href={s.link}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 inline-flex items-center gap-1"
+                            className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 inline-flex items-center gap-1 shrink-0"
                           >
                             عرض المشروع <ExternalLink className="w-3 h-3" />
                           </a>
@@ -535,15 +543,15 @@ export default function ActionCardFeed({
           return (
             <div
               key={card.id}
-              className="rounded-3xl border border-amber-500/30 bg-slate-900/70 p-6 space-y-4"
+              className="rounded-2xl sm:rounded-3xl border border-amber-500/30 bg-slate-900/70 p-4 sm:p-6 space-y-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 text-[11px] sm:text-xs font-bold">
                     <Megaphone className="w-3.5 h-3.5" /> إعلان تفاعلي
                   </span>
                   <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                    <Eye className="w-3.5 h-3.5 text-amber-300" /> أكّد الاطلاع: {acked.length}
+                    <Eye className="w-3.5 h-3.5 text-amber-300" /> {acked.length}
                   </span>
                 </div>
 
@@ -551,8 +559,10 @@ export default function ActionCardFeed({
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-white">{card.payload.title}</h3>
-                <p className="text-sm text-slate-200 mt-1 leading-relaxed">{card.payload.body}</p>
+                <h3 className="text-base sm:text-lg font-bold text-white">{card.payload.title}</h3>
+                <p className="text-xs sm:text-sm text-slate-200 mt-1 leading-relaxed">
+                  {card.payload.body}
+                </p>
                 {card.payload.event_at && (
                   <p className="text-xs text-amber-300 mt-2">
                     الموعد المرتبط: <span dir="ltr">{formatDate(card.payload.event_at)}</span>
@@ -563,7 +573,7 @@ export default function ActionCardFeed({
               <button
                 onClick={() => onAcknowledge(card.id)}
                 disabled={hasAcked || isBusy}
-                className={`px-5 py-2.5 rounded-xl text-xs font-bold transition inline-flex items-center gap-2 ${
+                className={`w-full sm:w-auto justify-center px-5 py-2.5 rounded-xl text-xs font-bold transition inline-flex items-center gap-2 ${
                   hasAcked
                     ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                     : "bg-amber-400 text-slate-950 hover:bg-amber-300"
@@ -591,19 +601,19 @@ export default function ActionCardFeed({
               ? { text: "تمت الموافقة ✓", cls: "bg-emerald-500/20 text-emerald-300" }
               : card.status === "rejected"
               ? { text: "مرفوض", cls: "bg-rose-500/20 text-rose-300" }
-              : { text: "بانتظار قرار الأدمن", cls: "bg-amber-500/20 text-amber-300" };
+              : { text: "بانتظار الأدمن", cls: "bg-amber-500/20 text-amber-300" };
 
           return (
             <div
               key={card.id}
-              className="rounded-3xl border border-violet-500/30 bg-slate-900/70 p-6 space-y-4"
+              className="rounded-2xl sm:rounded-3xl border border-violet-500/30 bg-slate-900/70 p-4 sm:p-6 space-y-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 text-xs font-bold">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 text-[11px] sm:text-xs font-bold">
                     <FileQuestion className="w-3.5 h-3.5" /> طلب استثناء — {card.requester_name || "طالب"}
                   </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadge.cls}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${statusBadge.cls}`}>
                     {statusBadge.text}
                   </span>
                 </div>
@@ -612,8 +622,10 @@ export default function ActionCardFeed({
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-white">{card.payload.request_type}</h3>
-                <p className="text-sm text-slate-300">السبب: {card.payload.reason}</p>
+                <h3 className="text-sm sm:text-base font-bold text-white">
+                  {card.payload.request_type}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300">السبب: {card.payload.reason}</p>
                 <p className="text-xs text-violet-300">المطلوب: {card.payload.requested_change}</p>
               </div>
 
@@ -630,20 +642,20 @@ export default function ActionCardFeed({
                     placeholder="ملاحظة اختيارية للطالب..."
                     value={adminNotes[card.id] || ""}
                     onChange={(e) => setAdminNotes((p) => ({ ...p, [card.id]: e.target.value }))}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-white"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white"
                   />
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 sm:flex gap-2">
                     <button
                       onClick={() => onResolveRequest(card.id, "approved", adminNotes[card.id] || "")}
                       disabled={isBusy}
-                      className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 inline-flex items-center gap-1.5 disabled:opacity-50"
+                      className="justify-center px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 inline-flex items-center gap-1.5 disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-4 h-4" /> موافقة
                     </button>
                     <button
                       onClick={() => onResolveRequest(card.id, "rejected", adminNotes[card.id] || "")}
                       disabled={isBusy}
-                      className="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 inline-flex items-center gap-1.5 disabled:opacity-50"
+                      className="justify-center px-4 py-2.5 sm:py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 inline-flex items-center gap-1.5 disabled:opacity-50"
                     >
                       <XCircle className="w-4 h-4" /> رفض
                     </button>

@@ -169,18 +169,18 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
   }
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-900/70 backdrop-blur-xl flex flex-col h-[520px] overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-white/10 flex items-center justify-between bg-slate-950/50">
+    <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-slate-900/70 backdrop-blur-xl flex flex-col h-[calc(100dvh-260px)] min-h-[380px] md:h-[540px] overflow-hidden">
+      <div className="px-4 sm:px-5 py-3 border-b border-white/10 flex items-center justify-between bg-slate-950/50">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-cyan-400" />
-          <h3 className="text-sm font-bold text-white">المحادثة الفورية للشعبة</h3>
+          <h3 className="text-xs sm:text-sm font-bold text-white">المحادثة الفورية للشعبة</h3>
         </div>
         <span className="text-[11px] text-slate-400">{messages.length} رسالة</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 sm:space-y-3">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 text-xs gap-2">
+          <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 text-xs gap-2 px-4">
             <MessageSquare className="w-8 h-8 text-slate-700" />
             <p>لا توجد رسائل بعد. ابدأ أول محادثة مع أعضاء المساحة!</p>
           </div>
@@ -194,17 +194,19 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
                 className={`flex flex-col ${isMine ? "items-start" : "items-end"}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 border space-y-1 ${
+                  className={`max-w-[90%] sm:max-w-[82%] rounded-2xl px-3.5 py-2.5 border space-y-1 ${
                     isMine
                       ? "bg-cyan-500/15 border-cyan-400/30 text-white"
                       : "bg-slate-950/80 border-white/10 text-slate-200"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-cyan-300">{msg.sender_name}</span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-bold text-cyan-300 truncate">
+                        {msg.sender_name}
+                      </span>
                       {msg.sender_role === "admin" && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-200">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-200 shrink-0">
                           <Shield className="w-2.5 h-2.5" /> أدمن
                         </span>
                       )}
@@ -214,14 +216,14 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
                         type="button"
                         disabled={deletingId === msg.id}
                         onClick={() => handleDelete(msg.id)}
-                        className="text-slate-500 hover:text-rose-400 transition disabled:opacity-40"
+                        className="text-slate-500 hover:text-rose-400 transition disabled:opacity-40 shrink-0"
                         title="حذف الرسالة"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
                     )}
                   </div>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words">
                     {msg.text}
                   </p>
                   <p className="text-[10px] text-slate-500" dir="ltr">
@@ -244,21 +246,22 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
 
       <form
         onSubmit={handleSend}
-        className="p-3 border-t border-white/10 bg-slate-950/60 flex gap-2"
+        className="p-2.5 sm:p-3 border-t border-white/10 bg-slate-950/60 flex gap-2"
       >
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="اكتب رسالة فورية لأعضاء المساحة..."
+          placeholder="اكتب رسالة فورية..."
           maxLength={1000}
-          className="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+          className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400"
         />
         <button
           type="submit"
           disabled={sending || !text.trim()}
-          className="px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-sm hover:bg-cyan-400 disabled:opacity-50 inline-flex items-center gap-1.5"
+          className="px-3.5 sm:px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs sm:text-sm hover:bg-cyan-400 disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0"
         >
-          <Send className="w-4 h-4" /> إرسال
+          <Send className="w-4 h-4" />
+          <span className="hidden sm:inline">إرسال</span>
         </button>
       </form>
     </div>

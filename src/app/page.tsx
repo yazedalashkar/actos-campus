@@ -42,6 +42,7 @@ import {
   MessageSquare,
   Settings,
   Link2,
+  Menu,
 } from "lucide-react";
 
 type Workspace = {
@@ -81,6 +82,7 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"workspace" | "ledger">("workspace");
   const [wsView, setWsView] = useState<"cards" | "chat">("cards");
   const [showSettings, setShowSettings] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // تسجيل الدخول
   const [email, setEmail] = useState("");
@@ -138,6 +140,7 @@ export default function HomePage() {
       setWorkspaces((prev) => [data.workspace, ...prev.filter((w) => w.id !== data.workspace.id)]);
       setActiveWs(data.workspace);
       setActiveTab("workspace");
+      setMobileMenuOpen(false);
       setJoinCode("");
       showToast(`تم الانضمام إلى ${data.workspace.name}`);
     } else {
@@ -312,6 +315,8 @@ export default function HomePage() {
       }
       setWorkspaces((prev) => [data.workspace, ...prev]);
       setActiveWs(data.workspace);
+      setActiveTab("workspace");
+      setMobileMenuOpen(false);
       setNewWsName("");
       setNewWsRules("");
       showToast("تم إنشاء المساحة بنجاح");
@@ -514,7 +519,7 @@ export default function HomePage() {
 
   if (loadingAuth) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-3 bg-slate-950 text-cyan-400">
+      <main className="min-h-[100dvh] flex flex-col items-center justify-center gap-3 bg-slate-950 text-cyan-400">
         <div className="w-14 h-14 rounded-2xl bg-slate-900/80 border border-cyan-400/25 p-2 flex items-center justify-center shadow-lg shadow-cyan-500/15 animate-pulse">
           <Image
             src="/icon.svg"
@@ -532,8 +537,8 @@ export default function HomePage() {
 
   if (!user) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-indigo-950/40 to-slate-950">
-        <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 shadow-2xl">
+      <main className="min-h-[100dvh] flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-indigo-950/40 to-slate-950">
+        <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 sm:p-8 shadow-2xl">
           <div className="flex items-center gap-3.5 mb-6">
             <div className="w-12 h-12 rounded-2xl bg-slate-900/90 border border-cyan-400/30 p-1.5 flex items-center justify-center shadow-lg shadow-cyan-500/15 overflow-hidden shrink-0">
               <Image
@@ -546,7 +551,7 @@ export default function HomePage() {
               />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">Actos Campus</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Actos Campus</h1>
               <p className="text-xs text-slate-400">منصة التواصل القابل للتنفيذ</p>
             </div>
           </div>
@@ -555,7 +560,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => selectAccountType("admin")}
-              className={`py-2 rounded-lg text-sm font-semibold transition ${
+              className={`py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
                 accountType === "admin" ? "bg-cyan-500 text-slate-950" : "text-slate-400"
               }`}
             >
@@ -564,7 +569,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => selectAccountType("personal")}
-              className={`py-2 rounded-lg text-sm font-semibold transition ${
+              className={`py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
                 accountType === "personal" ? "bg-violet-500 text-white" : "text-slate-400"
               }`}
             >
@@ -574,7 +579,7 @@ export default function HomePage() {
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full py-3 rounded-xl bg-white text-slate-950 font-bold mb-4 hover:bg-slate-200 transition"
+            className="w-full py-3 rounded-xl bg-white text-slate-950 font-bold text-sm mb-4 hover:bg-slate-200 transition"
           >
             المتابعة باستخدام Google
           </button>
@@ -586,7 +591,7 @@ export default function HomePage() {
               placeholder="البريد الإلكتروني"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
+              className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
             />
             <input
               type="password"
@@ -594,12 +599,12 @@ export default function HomePage() {
               placeholder="كلمة المرور (6 أحرف على الأقل)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
+              className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
             />
             {authError && <p className="text-xs text-rose-400">{authError}</p>}
             <button
               type="submit"
-              className="w-full py-3 rounded-xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-white hover:opacity-90 transition"
+              className="w-full py-3 rounded-xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-sm text-white hover:opacity-90 transition"
             >
               {isRegister ? "إنشاء حساب جديد" : "تسجيل الدخول"}
             </button>
@@ -618,9 +623,9 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col md:flex-row">
+    <main className="min-h-[100dvh] bg-slate-950 text-slate-100 flex flex-col md:flex-row">
       {toast && (
-        <div className="fixed bottom-5 left-5 z-50 px-4 py-3 rounded-2xl bg-slate-900 border border-cyan-400/40 text-cyan-300 text-sm shadow-2xl">
+        <div className="fixed bottom-20 md:bottom-5 left-4 right-4 md:right-auto md:max-w-md z-50 px-4 py-3 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-cyan-400/40 text-cyan-300 text-xs sm:text-sm shadow-2xl text-center md:text-right">
           {toast}
         </div>
       )}
@@ -652,8 +657,80 @@ export default function HomePage() {
         />
       )}
 
-      {/* الشريط الجانبي */}
-      <aside className="w-full md:w-80 border-b md:border-b-0 md:border-l border-white/10 bg-slate-900/50 p-5 flex flex-col gap-5">
+      {/* الشريط العلوي الثابت للموبايل فقط */}
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-slate-950/85 backdrop-blur-xl border-b border-white/10">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 active:scale-95 transition shrink-0"
+            aria-label="فتح القائمة"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="w-8 h-8 rounded-xl bg-slate-900 border border-cyan-400/30 p-1 flex items-center justify-center shrink-0">
+            <Image
+              src="/icon.svg"
+              alt="Actos Campus"
+              width={24}
+              height={24}
+              unoptimized
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-white truncate">
+              {activeTab === "ledger"
+                ? "خزنة الالتزامات"
+                : activeWs?.name || "Actos Campus"}
+            </p>
+            <p className="text-[10px] text-cyan-400/80 truncate">
+              {activeTab === "ledger"
+                ? `${ledgerItems.length} التزام`
+                : activeWs
+                ? activeWs.role === "admin"
+                  ? "مساحة أدمن"
+                  : "مساحة طالب"
+                : "اختر مساحة للبدء"}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab(activeTab === "ledger" ? "workspace" : "ledger")}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 transition ${
+            activeTab === "ledger"
+              ? "bg-cyan-500 text-slate-950"
+              : "bg-violet-500/20 border border-violet-500/30 text-violet-200"
+          }`}
+        >
+          {activeTab === "ledger" ? (
+            <>
+              <Layers className="w-3.5 h-3.5" /> المساحة
+            </>
+          ) : (
+            <>
+              <ClipboardList className="w-3.5 h-3.5" /> خزنتي ({ledgerItems.length})
+            </>
+          )}
+        </button>
+      </header>
+
+      {/* خلفية معتمة عند فتح القائمة الجانبية على الموبايل */}
+      {mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/75 backdrop-blur-sm md:hidden"
+        />
+      )}
+
+      {/* الشريط الجانبي (ثابت على الكمبيوتر، وقائمة منزلقة أنيقة على الموبايل) */}
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 w-[86vw] max-w-xs bg-slate-900/95 backdrop-blur-2xl border-l border-white/10 p-5 flex flex-col gap-5 overflow-y-auto transition-transform duration-300 ease-out md:static md:w-80 md:max-w-none md:translate-x-0 md:bg-slate-900/50 md:backdrop-blur-none ${
+          mobileMenuOpen ? "translate-x-0 shadow-2xl" : "translate-x-full md:translate-x-0"
+        }`}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-slate-950/90 border border-cyan-400/30 p-1 flex items-center justify-center shadow-md shadow-cyan-500/15 overflow-hidden shrink-0">
@@ -671,13 +748,24 @@ export default function HomePage() {
               <span className="text-[10px] text-cyan-400/80">التواصل القابل للتنفيذ</span>
             </div>
           </div>
-          <button
-            onClick={() => signOut(auth)}
-            className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-white/5"
-            title="تسجيل الخروج"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => signOut(auth)}
+              className="p-2 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-white/5"
+              title="تسجيل الخروج"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="md:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+              aria-label="إغلاق القائمة"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs">
@@ -689,7 +777,10 @@ export default function HomePage() {
 
         <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-950 border border-white/10">
           <button
-            onClick={() => setActiveTab("workspace")}
+            onClick={() => {
+              setActiveTab("workspace");
+              setMobileMenuOpen(false);
+            }}
             className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
               activeTab === "workspace" ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-white"
             }`}
@@ -697,7 +788,10 @@ export default function HomePage() {
             <Layers className="w-3.5 h-3.5" /> المساحات
           </button>
           <button
-            onClick={() => setActiveTab("ledger")}
+            onClick={() => {
+              setActiveTab("ledger");
+              setMobileMenuOpen(false);
+            }}
             className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
               activeTab === "ledger" ? "bg-violet-500 text-white" : "text-slate-400 hover:text-white"
             }`}
@@ -714,6 +808,7 @@ export default function HomePage() {
               onClick={() => {
                 setActiveWs(ws);
                 setActiveTab("workspace");
+                setMobileMenuOpen(false);
               }}
               className={`w-full text-right p-3 rounded-xl border transition ${
                 activeWs?.id === ws.id && activeTab === "workspace"
@@ -721,9 +816,9 @@ export default function HomePage() {
                   : "bg-white/5 border-white/5 text-slate-300 hover:bg-white/10"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-sm">{ws.name}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-sm truncate">{ws.name}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 shrink-0">
                   {ws.role === "admin" ? "أدمن" : "طالب"}
                 </span>
               </div>
@@ -752,7 +847,7 @@ export default function HomePage() {
           <button
             type="submit"
             disabled={wsLoading}
-            className="w-full py-2 rounded-xl bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 disabled:opacity-50"
+            className="w-full py-2.5 rounded-xl bg-cyan-500 text-slate-950 text-sm font-bold hover:bg-cyan-400 disabled:opacity-50"
           >
             {wsLoading ? "جاري الإنشاء..." : "إنشاء المساحة"}
           </button>
@@ -767,11 +862,11 @@ export default function HomePage() {
               placeholder="مثال: LQZ27L"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm rounded-xl bg-slate-950 border border-white/10 uppercase"
+              className="flex-1 min-w-0 px-3 py-2 text-sm rounded-xl bg-slate-950 border border-white/10 uppercase"
             />
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-500"
+              className="px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-500 shrink-0"
             >
               دخول
             </button>
@@ -780,11 +875,11 @@ export default function HomePage() {
       </aside>
 
       {/* المحتوى الرئيسي */}
-      <section className="flex-1 p-6 flex flex-col justify-between max-w-4xl mx-auto w-full">
+      <section className="flex-1 p-4 md:p-6 flex flex-col justify-between max-w-4xl mx-auto w-full min-w-0">
         {activeTab === "ledger" ? (
           <div className="space-y-4">
             <div className="pb-4 border-b border-white/10">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
                 <ClipboardList className="w-5 h-5 text-violet-400" /> خزنة الالتزامات اليومية
               </h2>
               <p className="text-xs text-slate-400 mt-1">
@@ -793,7 +888,7 @@ export default function HomePage() {
             </div>
 
             {ledgerItems.length === 0 ? (
-              <div className="p-8 rounded-3xl border border-dashed border-white/15 text-center text-slate-400 text-sm">
+              <div className="p-8 rounded-2xl sm:rounded-3xl border border-dashed border-white/15 text-center text-slate-400 text-sm">
                 لا توجد التزامات مسجّلة بعد.
               </div>
             ) : (
@@ -801,13 +896,15 @@ export default function HomePage() {
                 {ledgerItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-4 rounded-2xl bg-slate-900/80 border border-violet-500/30 flex items-center justify-between gap-4"
+                    className="p-4 rounded-2xl bg-slate-900/80 border border-violet-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <span className="text-[11px] text-violet-300 font-semibold">
                         {item.workspace_name}
                       </span>
-                      <h3 className="font-bold text-white mt-0.5">{item.title}</h3>
+                      <h3 className="font-bold text-sm sm:text-base text-white mt-0.5 break-words">
+                        {item.title}
+                      </h3>
                       <p className="text-xs text-slate-400 mt-1" dir="ltr">
                         {new Date(item.due_at).toLocaleString("ar-SY", {
                           dateStyle: "medium",
@@ -815,7 +912,7 @@ export default function HomePage() {
                         })}
                       </p>
                     </div>
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-xs font-bold">
+                    <span className="self-start sm:self-center inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-xs font-bold shrink-0">
                       <CheckCircle2 className="w-3.5 h-3.5" /> {item.status}
                     </span>
                   </div>
@@ -825,13 +922,15 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            <div className="space-y-6">
+            <div className="space-y-5 md:space-y-6 pb-4">
               {activeWs ? (
-                <div className="space-y-4 pb-4 border-b border-white/10">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-xl font-bold text-white">{activeWs.name}</h2>
-                      <p className="text-xs text-slate-400 mt-1">
+                <div className="space-y-3.5 pb-4 border-b border-white/10">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-lg sm:text-xl font-bold text-white truncate">
+                        {activeWs.name}
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                         دستور العمل: {activeWs.knowledge_rules_text || "لم تُضف قواعد بعد"}
                       </p>
                     </div>
@@ -844,9 +943,9 @@ export default function HomePage() {
                           setCopiedCode(true);
                           setTimeout(() => setCopiedCode(false), 1500);
                         }}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs hover:border-cyan-400"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs hover:border-cyan-400"
                       >
-                        <span>الكود:</span>
+                        <span className="text-slate-400">الكود:</span>
                         <strong className="text-cyan-400 tracking-wider">{activeWs.invite_code}</strong>
                         {copiedCode ? (
                           <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -864,7 +963,7 @@ export default function HomePage() {
                           showToast("تم نسخ رابط الدعوة المباشر");
                           setTimeout(() => setCopiedLink(false), 1800);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/25"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/25"
                         title="نسخ رابط ينضم منه الطالب مباشرةً"
                       >
                         {copiedLink ? (
@@ -878,20 +977,20 @@ export default function HomePage() {
                       <button
                         type="button"
                         onClick={() => setShowSettings(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 text-xs font-bold hover:border-violet-400"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 text-xs font-bold hover:border-violet-400"
                       >
                         <Settings className="w-3.5 h-3.5 text-violet-400" />
-                        إدارة وتعديل المساحة
+                        إدارة المساحة
                       </button>
                     </div>
                   </div>
 
                   {/* التبديل بين بطاقات الفعل والمحادثة الفورية */}
-                  <div className="inline-flex p-1 rounded-xl bg-slate-900 border border-white/10 gap-1">
+                  <div className="grid grid-cols-2 sm:inline-flex p-1 rounded-xl bg-slate-900 border border-white/10 gap-1">
                     <button
                       type="button"
                       onClick={() => setWsView("cards")}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                      className={`px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                         wsView === "cards"
                           ? "bg-cyan-500 text-slate-950"
                           : "text-slate-400 hover:text-white"
@@ -902,7 +1001,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() => setWsView("chat")}
-                      className={`px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                      className={`px-3 sm:px-4 py-2 sm:py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition ${
                         wsView === "chat"
                           ? "bg-violet-500 text-white"
                           : "text-slate-400 hover:text-white"
@@ -913,8 +1012,17 @@ export default function HomePage() {
                   </div>
                 </div>
               ) : (
-                <div className="p-8 rounded-3xl border border-dashed border-white/15 text-center text-slate-400">
-                  أنشئ أول مساحة عمل من القائمة الجانبية أو انضم عبر كود دعوة للبدء.
+                <div className="p-6 sm:p-8 rounded-2xl sm:rounded-3xl border border-dashed border-white/15 text-center space-y-3">
+                  <p className="text-slate-400 text-sm">
+                    أنشئ أول مساحة عمل أو انضم عبر كود دعوة للبدء.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setMobileMenuOpen(true)}
+                    className="md:hidden inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 text-xs font-bold"
+                  >
+                    <Plus className="w-4 h-4" /> فتح قائمة المساحات
+                  </button>
                 </div>
               )}
 
@@ -938,7 +1046,7 @@ export default function HomePage() {
 
                   {/* معاينة البطاقة المقترحة من الذكاء الاصطناعي */}
                   {proposedCard && (
-                    <div className="rounded-3xl border border-amber-400/40 bg-gradient-to-br from-slate-900 to-indigo-950/50 p-6 shadow-xl space-y-4">
+                    <div className="rounded-2xl sm:rounded-3xl border border-amber-400/40 bg-gradient-to-br from-slate-900 to-indigo-950/50 p-4 sm:p-6 shadow-xl space-y-4">
                       <div className="flex items-center justify-between gap-2">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold">
                           <ShieldCheck className="w-3.5 h-3.5" />
@@ -964,7 +1072,7 @@ export default function HomePage() {
 
                       {proposedCard.card_type === "slot_booking" && (
                         <div className="space-y-3">
-                          <h3 className="text-lg font-bold text-white">
+                          <h3 className="text-base sm:text-lg font-bold text-white">
                             {proposedCard.payload.session_group_title}
                           </h3>
                           <p className="text-sm text-slate-300">{proposedCard.summary}</p>
@@ -984,7 +1092,7 @@ export default function HomePage() {
 
                       {proposedCard.card_type === "submission" && (
                         <div className="space-y-1">
-                          <h3 className="text-lg font-bold text-white">
+                          <h3 className="text-base sm:text-lg font-bold text-white">
                             {proposedCard.payload.assignment_title}
                           </h3>
                           <p className="text-sm text-slate-300">
@@ -998,7 +1106,7 @@ export default function HomePage() {
 
                       {proposedCard.card_type === "interactive_broadcast" && (
                         <div className="space-y-1">
-                          <h3 className="text-lg font-bold text-white">
+                          <h3 className="text-base sm:text-lg font-bold text-white">
                             {proposedCard.payload.title}
                           </h3>
                           <p className="text-sm text-slate-200">{proposedCard.payload.body}</p>
@@ -1020,11 +1128,11 @@ export default function HomePage() {
                       )}
 
                       {canPublishProposed && (
-                        <div className="flex items-center gap-3 pt-2">
+                        <div className="flex flex-wrap items-center gap-2.5 pt-2">
                           <button
                             onClick={handlePublishCard}
                             disabled={publishing}
-                            className="px-5 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-sm hover:bg-emerald-400 disabled:opacity-50 flex items-center gap-2"
+                            className="flex-1 sm:flex-none justify-center px-5 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs sm:text-sm hover:bg-emerald-400 disabled:opacity-50 flex items-center gap-2"
                           >
                             <CheckCircle2 className="w-4 h-4" />
                             {publishing
@@ -1035,7 +1143,7 @@ export default function HomePage() {
                           </button>
                           <button
                             onClick={() => setProposedCard(null)}
-                            className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm hover:bg-white/10"
+                            className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-xs sm:text-sm hover:bg-white/10"
                           >
                             إلغاء
                           </button>
@@ -1070,18 +1178,18 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* أوامر مقترحة سريعة + شريط الأوامر */}
+            {/* شريط الأوامر الذكي (ثابت في أسفل الشاشة على الموبايل لسهولة الوصول) */}
             {wsView === "cards" && (
-              <div className="mt-6 space-y-2.5">
+              <div className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-slate-950/90 backdrop-blur-xl border-t border-white/10 md:static md:mx-0 md:p-0 md:mt-6 md:border-0 md:bg-transparent space-y-2">
                 {activeWs && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
                     {(activeWs.role === "admin" ? QUICK_PROMPTS_ADMIN : QUICK_PROMPTS_STUDENT).map(
                       (q, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => setPrompt(q)}
-                          className="text-[11px] px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:border-cyan-400/50 hover:text-cyan-300 transition"
+                          className="shrink-0 text-[11px] px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:border-cyan-400/50 hover:text-cyan-300 transition"
                         >
                           {q}
                         </button>
@@ -1097,18 +1205,21 @@ export default function HomePage() {
                     disabled={!activeWs}
                     placeholder={
                       activeWs
-                        ? "اكتب أمراً (جلسات، تسليم مشروع، إعلان قاعة، أو طلب استثناء)..."
+                        ? "اكتب أمراً (جلسات، تسليم، إعلان، أو طلب)..."
                         : "اختر أو أنشئ مساحة عمل أولاً..."
                     }
-                    className="flex-1 px-4 py-3.5 rounded-2xl bg-slate-900 border border-white/10 text-sm focus:outline-none focus:border-cyan-400 disabled:opacity-50"
+                    className="flex-1 min-w-0 px-3.5 sm:px-4 py-3 sm:py-3.5 rounded-2xl bg-slate-900 border border-white/10 text-xs sm:text-sm focus:outline-none focus:border-cyan-400 disabled:opacity-50"
                   />
                   <button
                     type="submit"
                     disabled={aiLoading || !activeWs}
-                    className="px-5 py-3.5 rounded-2xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-white flex items-center gap-2 disabled:opacity-50"
+                    className="px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-xs sm:text-sm text-white flex items-center gap-1.5 shrink-0 disabled:opacity-50"
                   >
                     <Send className="w-4 h-4" />
-                    {aiLoading ? "جاري التوليد..." : "تنفيذ"}
+                    <span className="hidden sm:inline">
+                      {aiLoading ? "جاري التوليد..." : "تنفيذ"}
+                    </span>
+                    <span className="sm:hidden">{aiLoading ? "..." : "تنفيذ"}</span>
                   </button>
                 </form>
               </div>
