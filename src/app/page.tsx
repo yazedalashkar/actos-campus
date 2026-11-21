@@ -1,5 +1,7 @@
 "use client";
 import AdminReportPanel from "@/components/AdminReportPanel";
+import WorkspaceChat from "@/components/WorkspaceChat";
+import WorkspaceSettingsModal from "@/components/WorkspaceSettingsModal";
 import type { WeeklyReport } from "@/app/api/ai/weekly-report/route";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -37,6 +39,9 @@ import {
   X,
   ClipboardList,
   Layers,
+  MessageSquare,
+  Settings,
+  Link2,
 } from "lucide-react";
 
 type Workspace = {
@@ -74,6 +79,8 @@ export default function HomePage() {
   const accountTypeRef = useRef<"personal" | "admin">("admin");
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState<"workspace" | "ledger">("workspace");
+  const [wsView, setWsView] = useState<"cards" | "chat">("cards");
+  const [showSettings, setShowSettings] = useState(false);
 
   // تسجيل الدخول
   const [email, setEmail] = useState("");
@@ -90,6 +97,7 @@ export default function HomePage() {
   const [wsError, setWsError] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // محرك الذكاء الاصطناعي والنشر
   const [prompt, setPrompt] = useState("");
@@ -104,6 +112,7 @@ export default function HomePage() {
   const [bookingSlotId, setBookingSlotId] = useState<string | null>(null);
   const [interactingCardId, setInteractingCardId] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  const autoJoinedRef = useRef(false);
 
   function selectAccountType(type: "personal" | "admin") {
     setAccountType(type);
@@ -113,6 +122,27 @@ export default function HomePage() {
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(""), 3200);
+  }
+
+  async function joinByCode(u: User, code: string) {
+    const clean = code.trim().toUpperCase();
+    if (!clean) return;
+    const token = await u.getIdToken();
+    const res = await fetch("/api/workspaces", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ invite_code: clean }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setWorkspaces((prev) => [data.workspace, ...prev.filter((w) => w.id !== data.workspace.id)]);
+      setActiveWs(data.workspace);
+      setActiveTab("workspace");
+      setJoinCode("");
+      showToast(`تم الانضمام إلى ${data.workspace.name}`);
+    } else {
+      showToast("كود الدعوة غير صحيح");
+    }
   }
 
   useEffect(() => {
@@ -134,6 +164,16 @@ export default function HomePage() {
           });
         }
         await fetchWorkspaces(currentUser);
+
+        // دعم الانضمام التلقائي عبر رابط الدعوة المباشر (?join=CODE)
+        if (typeof window !== "undefined" && !autoJoinedRef.current) {
+          const urlCode = new URLSearchParams(window.location.search).get("join");
+          if (urlCode) {
+            autoJoinedRef.current = true;
+            await joinByCode(currentUser, urlCode);
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+        }
       } else {
         setWorkspaces([]);
         setActiveWs(null);
@@ -141,6 +181,7 @@ export default function HomePage() {
       setLoadingAuth(false);
     });
     return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -285,21 +326,7 @@ export default function HomePage() {
   async function handleJoinWorkspace(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !joinCode.trim()) return;
-    const token = await user.getIdToken();
-    const res = await fetch("/api/workspaces", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ invite_code: joinCode }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setWorkspaces((prev) => [data.workspace, ...prev.filter((w) => w.id !== data.workspace.id)]);
-      setActiveWs(data.workspace);
-      setJoinCode("");
-      showToast(`تم الانضمام إلى ${data.workspace.name}`);
-    } else {
-      showToast("كود الدعوة غير صحيح");
-    }
+    await joinByCode(user, joinCode);
   }
 
   async function handleTestAI(e: React.FormEvent) {
@@ -582,6 +609,23 @@ export default function HomePage() {
         </div>
       )}
 
+      {showSettings && activeWs && (
+        <WorkspaceSettingsModal
+          user={user}
+          workspace={activeWs}
+          onClose={() => setShowSettings(false)}
+          onNotify={showToast}
+          onUpdated={({ id, name, knowledge_rules_text }) => {
+            setWorkspaces((prev) =>
+              prev.map((w) => (w.id === id ? { ...w, name, knowledge_rules_text } : w))
+            );
+            setActiveWs((prev) =>
+              prev && prev.id === id ? { ...prev, name, knowledge_rules_text } : prev
+            );
+          }}
+        />
+      )}
+
       {/* الشريط الجانبي */}
       <aside className="w-full md:w-80 border-b md:border-b-0 md:border-l border-white/10 bg-slate-900/50 p-5 flex flex-col gap-5">
         <div className="flex items-center justify-between">
@@ -745,29 +789,90 @@ export default function HomePage() {
           <>
             <div className="space-y-6">
               {activeWs ? (
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-white/10">
-                  <div>
-                    <h2 className="text-xl font-bold text-white">{activeWs.name}</h2>
-                    <p className="text-xs text-slate-400 mt-1">
-                      دستور العمل: {activeWs.knowledge_rules_text || "لم تُضف قواعد بعد"}
-                    </p>
+                <div className="space-y-4 pb-4 border-b border-white/10">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-xl font-bold text-white">{activeWs.name}</h2>
+                      <p className="text-xs text-slate-400 mt-1">
+                        دستور العمل: {activeWs.knowledge_rules_text || "لم تُضف قواعد بعد"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(activeWs.invite_code);
+                          setCopiedCode(true);
+                          setTimeout(() => setCopiedCode(false), 1500);
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs hover:border-cyan-400"
+                      >
+                        <span>الكود:</span>
+                        <strong className="text-cyan-400 tracking-wider">{activeWs.invite_code}</strong>
+                        {copiedCode ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = `${window.location.origin}/?join=${activeWs.invite_code}`;
+                          navigator.clipboard.writeText(url);
+                          setCopiedLink(true);
+                          showToast("تم نسخ رابط الدعوة المباشر");
+                          setTimeout(() => setCopiedLink(false), 1800);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/25"
+                        title="نسخ رابط ينضم منه الطالب مباشرةً"
+                      >
+                        {copiedLink ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-300" />
+                        ) : (
+                          <Link2 className="w-3.5 h-3.5" />
+                        )}
+                        رابط الدعوة
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowSettings(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 text-xs font-bold hover:border-violet-400"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-violet-400" />
+                        الأعضاء والإعدادات
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(activeWs.invite_code);
-                      setCopiedCode(true);
-                      setTimeout(() => setCopiedCode(false), 1500);
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs hover:border-cyan-400"
-                  >
-                    <span>كود الدعوة:</span>
-                    <strong className="text-cyan-400 tracking-wider">{activeWs.invite_code}</strong>
-                    {copiedCode ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
+
+                  {/* التبديل بين بطاقات الفعل والمحادثة الفورية */}
+                  <div className="inline-flex p-1 rounded-xl bg-slate-900 border border-white/10 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setWsView("cards")}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                        wsView === "cards"
+                          ? "bg-cyan-500 text-slate-950"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" /> بطاقات الفعل ({liveCards.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWsView("chat")}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                        wsView === "chat"
+                          ? "bg-violet-500 text-white"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" /> المحادثة الفورية
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="p-8 rounded-3xl border border-dashed border-white/15 text-center text-slate-400">
@@ -775,177 +880,201 @@ export default function HomePage() {
                 </div>
               )}
 
-              {activeWs && activeWs.role === "admin" && (
-                <AdminReportPanel
+              {activeWs && wsView === "chat" ? (
+                <WorkspaceChat
                   user={user}
                   workspaceId={activeWs.id}
-                  initialReport={activeWs.last_weekly_report}
+                  isAdmin={activeWs.role === "admin"}
                   onNotify={showToast}
                 />
-              )}
-
-              {/* معاينة البطاقة المقترحة من الذكاء الاصطناعي */}
-              {proposedCard && (
-                <div className="rounded-3xl border border-amber-400/40 bg-gradient-to-br from-slate-900 to-indigo-950/50 p-6 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      {proposedCard.card_type === "none"
-                        ? "رد الوكيل الذكي"
-                        : proposedCard.card_type === "policy_request"
-                        ? "معاينة طلب الاستثناء قبل الإرسال"
-                        : "معاينة البطاقة قبل النشر"}
-                    </span>
-                    <button
-                      onClick={() => setProposedCard(null)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {proposedCard.card_type === "none" && (
-                    <p className="text-sm text-slate-200 leading-relaxed">{proposedCard.reply_text}</p>
+              ) : (
+                <>
+                  {activeWs && activeWs.role === "admin" && (
+                    <AdminReportPanel
+                      user={user}
+                      workspaceId={activeWs.id}
+                      initialReport={activeWs.last_weekly_report}
+                      onNotify={showToast}
+                    />
                   )}
 
-                  {proposedCard.card_type === "slot_booking" && (
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-bold text-white">
-                        {proposedCard.payload.session_group_title}
-                      </h3>
-                      <p className="text-sm text-slate-300">{proposedCard.summary}</p>
-                      <div className="grid sm:grid-cols-3 gap-2">
-                        {proposedCard.payload.slots.map((s, i) => (
-                          <div key={i} className="p-3 rounded-xl bg-slate-950/70 border border-white/10 text-xs">
-                            <p className="font-bold text-cyan-300">{s.title}</p>
-                            <p className="text-slate-400">السعة: {s.capacity}</p>
-                          </div>
-                        ))}
+                  {/* معاينة البطاقة المقترحة من الذكاء الاصطناعي */}
+                  {proposedCard && (
+                    <div className="rounded-3xl border border-amber-400/40 bg-gradient-to-br from-slate-900 to-indigo-950/50 p-6 shadow-xl space-y-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          {proposedCard.card_type === "none"
+                            ? "رد الوكيل الذكي"
+                            : proposedCard.card_type === "policy_request"
+                            ? "معاينة طلب الاستثناء قبل الإرسال"
+                            : "معاينة البطاقة قبل النشر"}
+                        </span>
+                        <button
+                          onClick={() => setProposedCard(null)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
+
+                      {proposedCard.card_type === "none" && (
+                        <p className="text-sm text-slate-200 leading-relaxed">
+                          {proposedCard.reply_text}
+                        </p>
+                      )}
+
+                      {proposedCard.card_type === "slot_booking" && (
+                        <div className="space-y-3">
+                          <h3 className="text-lg font-bold text-white">
+                            {proposedCard.payload.session_group_title}
+                          </h3>
+                          <p className="text-sm text-slate-300">{proposedCard.summary}</p>
+                          <div className="grid sm:grid-cols-3 gap-2">
+                            {proposedCard.payload.slots.map((s, i) => (
+                              <div
+                                key={i}
+                                className="p-3 rounded-xl bg-slate-950/70 border border-white/10 text-xs"
+                              >
+                                <p className="font-bold text-cyan-300">{s.title}</p>
+                                <p className="text-slate-400">السعة: {s.capacity}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {proposedCard.card_type === "submission" && (
+                        <div className="space-y-1">
+                          <h3 className="text-lg font-bold text-white">
+                            {proposedCard.payload.assignment_title}
+                          </h3>
+                          <p className="text-sm text-slate-300">
+                            {proposedCard.payload.description}
+                          </p>
+                          <p className="text-xs text-amber-300" dir="ltr">
+                            آخر موعد: {new Date(proposedCard.payload.due_at).toLocaleString("ar-SY")}
+                          </p>
+                        </div>
+                      )}
+
+                      {proposedCard.card_type === "interactive_broadcast" && (
+                        <div className="space-y-1">
+                          <h3 className="text-lg font-bold text-white">
+                            {proposedCard.payload.title}
+                          </h3>
+                          <p className="text-sm text-slate-200">{proposedCard.payload.body}</p>
+                        </div>
+                      )}
+
+                      {proposedCard.card_type === "policy_request" && (
+                        <div className="space-y-1">
+                          <h3 className="text-base font-bold text-white">
+                            {proposedCard.payload.request_type}
+                          </h3>
+                          <p className="text-sm text-slate-300">
+                            السبب: {proposedCard.payload.reason}
+                          </p>
+                          <p className="text-xs text-violet-300">
+                            المطلوب: {proposedCard.payload.requested_change}
+                          </p>
+                        </div>
+                      )}
+
+                      {canPublishProposed && (
+                        <div className="flex items-center gap-3 pt-2">
+                          <button
+                            onClick={handlePublishCard}
+                            disabled={publishing}
+                            className="px-5 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-sm hover:bg-emerald-400 disabled:opacity-50 flex items-center gap-2"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            {publishing
+                              ? "جاري التنفيذ..."
+                              : proposedCard.card_type === "policy_request"
+                              ? "إرسال الطلب للأدمن"
+                              : "اعتماد ونشر في المساحة"}
+                          </button>
+                          <button
+                            onClick={() => setProposedCard(null)}
+                            className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm hover:bg-white/10"
+                          >
+                            إلغاء
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {proposedCard.card_type === "submission" && (
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-white">
-                        {proposedCard.payload.assignment_title}
-                      </h3>
-                      <p className="text-sm text-slate-300">{proposedCard.payload.description}</p>
-                      <p className="text-xs text-amber-300" dir="ltr">
-                        آخر موعد: {new Date(proposedCard.payload.due_at).toLocaleString("ar-SY")}
+                  {/* البطاقات النشطة الأربع */}
+                  {activeWs && (
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-slate-400">
+                        بطاقات الفعل النشطة ({liveCards.length})
                       </p>
+                      <ActionCardFeed
+                        cards={liveCards}
+                        slots={slots}
+                        currentUserId={user.uid}
+                        isAdmin={activeWs.role === "admin"}
+                        bookingSlotId={bookingSlotId}
+                        interactingCardId={interactingCardId}
+                        onBookSlot={handleBookSlot}
+                        onCancelSlot={handleCancelSlot}
+                        onManageCard={handleManageCard}
+                        onAcknowledge={handleAcknowledge}
+                        onSubmitProject={handleSubmitProject}
+                        onResolveRequest={handleResolveRequest}
+                      />
                     </div>
                   )}
-
-                  {proposedCard.card_type === "interactive_broadcast" && (
-                    <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-white">{proposedCard.payload.title}</h3>
-                      <p className="text-sm text-slate-200">{proposedCard.payload.body}</p>
-                    </div>
-                  )}
-
-                  {proposedCard.card_type === "policy_request" && (
-                    <div className="space-y-1">
-                      <h3 className="text-base font-bold text-white">
-                        {proposedCard.payload.request_type}
-                      </h3>
-                      <p className="text-sm text-slate-300">السبب: {proposedCard.payload.reason}</p>
-                      <p className="text-xs text-violet-300">
-                        المطلوب: {proposedCard.payload.requested_change}
-                      </p>
-                    </div>
-                  )}
-
-                  {canPublishProposed && (
-                    <div className="flex items-center gap-3 pt-2">
-                      <button
-                        onClick={handlePublishCard}
-                        disabled={publishing}
-                        className="px-5 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-sm hover:bg-emerald-400 disabled:opacity-50 flex items-center gap-2"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        {publishing
-                          ? "جاري التنفيذ..."
-                          : proposedCard.card_type === "policy_request"
-                          ? "إرسال الطلب للأدمن"
-                          : "اعتماد ونشر في المساحة"}
-                      </button>
-                      <button
-                        onClick={() => setProposedCard(null)}
-                        className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm hover:bg-white/10"
-                      >
-                        إلغاء
-                      </button>
-                    </div>
-                  )}
-                </div>
+                </>
               )}
+            </div>
 
-              {/* البطاقات النشطة الأربع */}
-              {activeWs && (
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold text-slate-400">
-                    بطاقات الفعل النشطة ({liveCards.length})
-                  </p>
-                  <ActionCardFeed
-                    cards={liveCards}
-                    slots={slots}
-                    currentUserId={user.uid}
-                    isAdmin={activeWs.role === "admin"}
-                    bookingSlotId={bookingSlotId}
-                    interactingCardId={interactingCardId}
-                    onBookSlot={handleBookSlot}
-                    onCancelSlot={handleCancelSlot}
-                    onManageCard={handleManageCard}
-                    onAcknowledge={handleAcknowledge}
-                    onSubmitProject={handleSubmitProject}
-                    onResolveRequest={handleResolveRequest}
+            {/* أوامر مقترحة سريعة + شريط الأوامر (يظهر في عرض البطاقات) */}
+            {wsView === "cards" && (
+              <div className="mt-6 space-y-2.5">
+                {activeWs && (
+                  <div className="flex flex-wrap gap-2">
+                    {(activeWs.role === "admin" ? QUICK_PROMPTS_ADMIN : QUICK_PROMPTS_STUDENT).map(
+                      (q, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setPrompt(q)}
+                          className="text-[11px] px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:border-cyan-400/50 hover:text-cyan-300 transition"
+                        >
+                          {q}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
+
+                <form onSubmit={handleTestAI} className="flex gap-2">
+                  <input
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    disabled={!activeWs}
+                    placeholder={
+                      activeWs
+                        ? "اكتب أمراً (جلسات، تسليم مشروع، إعلان قاعة، أو طلب استثناء)..."
+                        : "اختر أو أنشئ مساحة عمل أولاً..."
+                    }
+                    className="flex-1 px-4 py-3.5 rounded-2xl bg-slate-900 border border-white/10 text-sm focus:outline-none focus:border-cyan-400 disabled:opacity-50"
                   />
-                </div>
-              )}
-            </div>
-
-            {/* أوامر مقترحة سريعة + شريط الأوامر */}
-            <div className="mt-6 space-y-2.5">
-              {activeWs && (
-                <div className="flex flex-wrap gap-2">
-                  {(activeWs.role === "admin" ? QUICK_PROMPTS_ADMIN : QUICK_PROMPTS_STUDENT).map(
-                    (q, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setPrompt(q)}
-                        className="text-[11px] px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:border-cyan-400/50 hover:text-cyan-300 transition"
-                      >
-                        {q}
-                      </button>
-                    )
-                  )}
-                </div>
-              )}
-
-              <form onSubmit={handleTestAI} className="flex gap-2">
-                <input
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  disabled={!activeWs}
-                  placeholder={
-                    activeWs
-                      ? "اكتب أمراً (جلسات، تسليم مشروع، إعلان قاعة، أو طلب استثناء)..."
-                      : "اختر أو أنشئ مساحة عمل أولاً..."
-                  }
-                  className="flex-1 px-4 py-3.5 rounded-2xl bg-slate-900 border border-white/10 text-sm focus:outline-none focus:border-cyan-400 disabled:opacity-50"
-                />
-                <button
-                  type="submit"
-                  disabled={aiLoading || !activeWs}
-                  className="px-5 py-3.5 rounded-2xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-white flex items-center gap-2 disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4" />
-                  {aiLoading ? "جاري التوليد..." : "تنفيذ"}
-                </button>
-              </form>
-            </div>
+                  <button
+                    type="submit"
+                    disabled={aiLoading || !activeWs}
+                    className="px-5 py-3.5 rounded-2xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-white flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4" />
+                    {aiLoading ? "جاري التوليد..." : "تنفيذ"}
+                  </button>
+                </form>
+              </div>
+            )}
           </>
         )}
       </section>
