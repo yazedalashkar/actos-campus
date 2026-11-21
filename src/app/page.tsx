@@ -165,7 +165,6 @@ export default function HomePage() {
         }
         await fetchWorkspaces(currentUser);
 
-        // دعم الانضمام التلقائي عبر رابط الدعوة المباشر (?join=CODE)
         if (typeof window !== "undefined" && !autoJoinedRef.current) {
           const urlCode = new URLSearchParams(window.location.search).get("join");
           if (urlCode) {
@@ -623,6 +622,16 @@ export default function HomePage() {
               prev && prev.id === id ? { ...prev, name, knowledge_rules_text } : prev
             );
           }}
+          onDeleted={(deletedId) => {
+            const remaining = workspaces.filter((w) => w.id !== deletedId);
+            setWorkspaces(remaining);
+            if (activeWs?.id === deletedId) {
+              setActiveWs(remaining[0] || null);
+              setWsView("cards");
+              setProposedCard(null);
+            }
+            setShowSettings(false);
+          }}
         />
       )}
 
@@ -843,7 +852,7 @@ export default function HomePage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 text-xs font-bold hover:border-violet-400"
                       >
                         <Settings className="w-3.5 h-3.5 text-violet-400" />
-                        الأعضاء والإعدادات
+                        إدارة وتعديل المساحة
                       </button>
                     </div>
                   </div>
@@ -1032,7 +1041,7 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* أوامر مقترحة سريعة + شريط الأوامر (يظهر في عرض البطاقات) */}
+            {/* أوامر مقترحة سريعة + شريط الأوامر */}
             {wsView === "cards" && (
               <div className="mt-6 space-y-2.5">
                 {activeWs && (

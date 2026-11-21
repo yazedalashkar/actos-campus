@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { User } from "firebase/auth";
-import { X, Users, Link2, Check, Copy, Save, Shield } from "lucide-react";
+import {
+  X,
+  Users,
+  Link2,
+  Check,
+  Copy,
+  Save,
+  Shield,
+  Trash2,
+  LogOut,
+  AlertTriangle,
+} from "lucide-react";
 
 type MemberItem = {
   uid: string;
@@ -23,6 +34,7 @@ type Props = {
   };
   onClose: () => void;
   onUpdated: (updated: { id: string; name: string; knowledge_rules_text: string }) => void;
+  onDeleted: (workspaceId: string) => void;
   onNotify: (msg: string) => void;
 };
 
@@ -31,6 +43,7 @@ export default function WorkspaceSettingsModal({
   workspace,
   onClose,
   onUpdated,
+  onDeleted,
   onNotify,
 }: Props) {
   const [members, setMembers] = useState<MemberItem[]>([]);
@@ -39,6 +52,8 @@ export default function WorkspaceSettingsModal({
   const [rules, setRules] = useState(workspace.knowledge_rules_text || "");
   const [saving, setSaving] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [confirmDanger, setConfirmDanger] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const inviteLink =
     typeof window !== "undefined"
@@ -100,12 +115,38 @@ export default function WorkspaceSettingsModal({
     }
   }
 
+  async function handleDeleteOrLeave() {
+    setDeleting(true);
+    try {
+      const mode = workspace.role === "admin" ? "delete" : "leave";
+      const token = await user.getIdToken();
+      const res = await fetch("/api/workspaces/manage", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ workspace_id: workspace.id, mode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        onNotify(data.error || "تعذر تنفيذ الإجراء");
+        return;
+      }
+      onNotify(
+        mode === "delete"
+          ? "تم حذف المساحة وجميع بياناتها نهائياً"
+          : "تمت مغادرة المساحة بنجاح"
+      );
+      onDeleted(workspace.id);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-white/15 bg-slate-900 p-6 shadow-2xl space-y-6">
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-cyan-400" /> الأعضاء وإعدادات المساحة
+            <Users className="w-5 h-5 text-cyan-400" /> إدارة وتعديل المساحة
           </h3>
           <button
             type="button"
@@ -147,7 +188,7 @@ export default function WorkspaceSettingsModal({
         {/* تعديل الإعدادات للأدمن فقط */}
         {workspace.role === "admin" && (
           <form onSubmit={handleSave} className="space-y-3 pt-2 border-t border-white/10">
-            <p className="text-xs font-bold text-white">تعديل بيانات المساحة ودستور العمل</p>
+            <p className="text-xs font-bold text-white">تعديل اسم المساحة ودستور العمل</p>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -207,6 +248,69 @@ export default function WorkspaceSettingsModal({
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* منطقة الخطر: حذف المساحة للأدمن أو مغادرتها للطالب */}
+        <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/25 space-y-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-rose-300">
+                {workspace.role === "admin" ? "حذف المساحة نهائياً" : "مغادرة المساحة"}
+              </p>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {workspace.role === "admin"
+                  ? "سيؤدي هذا إلى حذف المساحة وجميع بطاقاتها وحجوزاتها ورسائلها نهائياً ولا يمكن التراجع عنه."
+                  : "ستغادر هذه المساحة ولن تظهر في قائمتك بعد الآن (يمكنك العودة بكود الدعوة لاحقاً)."}
+              </p>
+            </div>
+          </div>
+
+          {confirmDanger ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDeleteOrLeave}
+                className="px-4 py-2 rounded-xl bg-rose-500 text-white text-xs font-bold hover:bg-rose-400 disabled:opacity-50 inline-flex items-center gap-1.5"
+              >
+                {workspace.role === "admin" ? (
+                  <Trash2 className="w-3.5 h-3.5" />
+                ) : (
+                  <LogOut className="w-3.5 h-3.5" />
+                )}
+                {deleting
+                  ? "جاري التنفيذ..."
+                  : workspace.role === "admin"
+                  ? "نعم، احذف المساحة نهائياً"
+                  : "نعم، غادر المساحة"}
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => setConfirmDanger(false)}
+                className="px-3 py-2 rounded-xl bg-white/5 text-slate-300 text-xs hover:bg-white/10"
+              >
+                إلغاء
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmDanger(true)}
+              className="px-4 py-2 rounded-xl bg-rose-500/15 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/25 inline-flex items-center gap-1.5"
+            >
+              {workspace.role === "admin" ? (
+                <>
+                  <Trash2 className="w-3.5 h-3.5" /> حذف هذه المساحة
+                </>
+              ) : (
+                <>
+                  <LogOut className="w-3.5 h-3.5" /> مغادرة هذه المساحة
+                </>
+              )}
+            </button>
           )}
         </div>
       </div>
