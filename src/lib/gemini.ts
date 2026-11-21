@@ -89,9 +89,10 @@ export async function generateGeminiJson(params: {
     throw new Error("GEMINI_API_KEY مفقود في متغيرات البيئة على Vercel");
   }
 
-  const primaryModel = (process.env.GEMINI_MODEL || "gemini-3.8-flash").trim();
+  // نبدأ بـ gemini-3.5-flash-lite ليعمل فوراً، ومعه gemini-3.8-flash كاحتياط
+  const primaryModel = (process.env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
   const modelsToTry = Array.from(
-    new Set([primaryModel, "gemini-flash-latest", "gemini-2.5-flash-lite"])
+    new Set([primaryModel, "gemini-3.5-flash-lite", "gemini-3.8-flash"])
   );
 
   const errors: string[] = [];
@@ -99,7 +100,6 @@ export async function generateGeminiJson(params: {
   for (const model of modelsToTry) {
     let result = await callGeminiRest(model, params.contents, params.systemInstruction, true);
 
-    // إذا رفض النموذج خيار إيقاف التفكير (400)، أعد المحاولة بدونه فوراً
     if (
       !result.ok &&
       result.status === 400 &&
