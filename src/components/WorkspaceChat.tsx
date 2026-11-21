@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { MessageSquare, Send, Trash2, Shield } from "lucide-react";
+import { MessageSquare, Send, Trash2, Shield, AlertCircle } from "lucide-react";
 
 export type ChatMessage = {
   id: string;
@@ -29,31 +29,48 @@ function formatTime(iso: string) {
   return d.toLocaleString("ar-SY", { dateStyle: "short", timeStyle: "short" });
 }
 
+async function safeParseJson(res: Response): Promise<Record<string, unknown>> {
+  const raw = await res.text();
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return { error: `استجابة غير متوقعة من الخادم (HTTP ${res.status})` };
+  }
+}
+
 export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [fallbackMode, setFallbackMode] = useState(false);
+  const [chatError, setChatError] = useState("");
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  async function fetchViaApi() {
+  const fetchViaApi = useCallback(async () => {
     try {
       const token = await user.getIdToken();
       const res = await fetch(`/api/messages?workspace_id=${encodeURIComponent(workspaceId)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages || []);
+      const data = await safeParseJson(res);
+      if (res.ok && Array.isArray(data.messages)) {
+        setMessages(data.messages as ChatMessage[]);
+        setChatError("");
+      } else if (!res.ok) {
+        setChatError(String(data.error || `تعذر جلب الرسائل (${res.status})`));
       }
     } catch {
-      // تجاهل أخطاء الشبكة المؤقتة
+      setChatError("تعذر الاتصال بخادم الدردشة");
     }
-  }
+  }, [user, workspaceId]);
 
   useEffect(() => {
     setFallbackMode(false);
+    setChatError("");
+    fetchViaApi();
+
     const q = query(
       collection(db, "workspace_messages"),
       where("workspace_id", "==", workspaceId),
@@ -69,22 +86,18 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
         setMessages(items);
       },
       () => {
-        // إذا قيّدت قواعد Firestore القراءة المباشرة للمجموعة الجديدة، نستخدم الـ API تلقائياً
         setFallbackMode(true);
-        fetchViaApi();
       }
     );
 
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId]);
+  }, [workspaceId, fetchViaApi]);
 
   useEffect(() => {
     if (!fallbackMode) return;
-    const timer = setInterval(fetchViaApi, 6000);
+    const timer = setInterval(fetchViaApi, 5000);
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fallbackMode, workspaceId]);
+  }, [fallbackMode, fetchViaApi]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -94,7 +107,9 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
     e.preventDefault();
     const clean = text.trim();
     if (!clean || sending) return;
+
     setSending(true);
+    setChatError("");
     try {
       const token = await user.getIdToken();
       const res = await fetch("/api/messages", {
@@ -102,15 +117,28 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ workspace_id: workspaceId, text: clean }),
       });
-      const data = await res.json();
+      const data = await safeParseJson(res);
+
       if (!res.ok) {
-        onNotify(data.error || "تعذر إرسال الرسالة");
+        const errMsg = String(data.error || `تعذر إرسال الرسالة (HTTP ${res.status})`);
+        setChatError(errMsg);
+        onNotify(errMsg);
         return;
       }
+
       setText("");
-      if (fallbackMode && data.message) {
-        setMessages((prev) => [...prev, data.message]);
+      const created = data.message as ChatMessage | undefined;
+      if (created?.id) {
+        setMessages((prev) =>
+          prev.some((m) => m.id === created.id) ? prev : [...prev, created]
+        );
+      } else {
+        await fetchViaApi();
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "حدث خطأ في الاتصال أثناء الإرسال";
+      setChatError(msg);
+      onNotify(msg);
     } finally {
       setSending(false);
     }
@@ -125,14 +153,16 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ message_id: messageId }),
       });
+      const data = await safeParseJson(res);
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        onNotify(data.error || "تعذر حذف الرسالة");
+        const errMsg = String(data.error || "تعذر حذف الرسالة");
+        setChatError(errMsg);
+        onNotify(errMsg);
         return;
       }
-      if (fallbackMode) {
-        setMessages((prev) => prev.filter((m) => m.id !== messageId));
-      }
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    } catch {
+      onNotify("تعذر الاتصال أثناء حذف الرسالة");
     } finally {
       setDeletingId(null);
     }
@@ -204,6 +234,13 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
         )}
         <div ref={bottomRef} />
       </div>
+
+      {chatError && (
+        <div className="px-4 py-2 bg-rose-500/15 border-t border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="truncate">{chatError}</span>
+        </div>
+      )}
 
       <form
         onSubmit={handleSend}
