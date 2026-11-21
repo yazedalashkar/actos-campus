@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ProposedActionCardSchema, ProposedActionCard } from "@/lib/schemas/action-cards";
 import { generateGeminiJson } from "@/lib/gemini";
+export const maxDuration = 60;
 
 function buildSmartLocalMock(message: string, knowledgeRules: string): ProposedActionCard {
   const m = message.toLowerCase();

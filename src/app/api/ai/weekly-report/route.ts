@@ -3,6 +3,7 @@ import { z } from "zod";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyUserFromRequest } from "@/lib/auth-server";
 import { generateGeminiJson } from "@/lib/gemini";
+export const maxDuration = 60;
 
 const RequestSchema = z.object({
   workspace_id: z.string().min(1),
