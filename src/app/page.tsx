@@ -3,6 +3,7 @@ import Image from "next/image";
 import AdminReportPanel from "@/components/AdminReportPanel";
 import WorkspaceChat from "@/components/WorkspaceChat";
 import WorkspaceSettingsModal from "@/components/WorkspaceSettingsModal";
+import AccountSettingsModal from "@/components/AccountSettingsModal";
 import type { WeeklyReport } from "@/app/api/ai/weekly-report/route";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -10,8 +11,10 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithPopup,
   signOut,
+  updateProfile,
   User,
 } from "firebase/auth";
 import {
@@ -43,6 +46,9 @@ import {
   Settings,
   Link2,
   Menu,
+  UserCog,
+  KeyRound,
+  AtSign,
 } from "lucide-react";
 
 type Workspace = {
@@ -63,6 +69,12 @@ type LedgerItem = {
   status: string;
 };
 
+type UserProfileState = {
+  full_name: string;
+  username: string;
+  account_type: "personal" | "admin";
+};
+
 const QUICK_PROMPTS_ADMIN = [
   "أنشئ 3 جلسات مناقشة عملي يوم الأربعاء بسعة 10 طلاب",
   "افتح باب تسليم مشروع البرمجة المتقدمة قبل نهاية الأسبوع",
@@ -78,17 +90,29 @@ export default function HomePage() {
   const [user, setUser] = useState<User | null>(null);
   const [accountType, setAccountType] = useState<"personal" | "admin">("admin");
   const accountTypeRef = useRef<"personal" | "admin">("admin");
+  const [userProfile, setUserProfile] = useState<UserProfileState>({
+    full_name: "",
+    username: "",
+    account_type: "admin",
+  });
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState<"workspace" | "ledger">("workspace");
   const [wsView, setWsView] = useState<"cards" | "chat">("cards");
   const [showSettings, setShowSettings] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // تسجيل الدخول
+  // تسجيل الدخول وإنشاء الحساب واستعادة كلمة المرور
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [regFullName, setRegFullName] = useState("");
+  const [regUsername, setRegUsername] = useState("");
+  const pendingSignupRef = useRef<{ full_name: string; username: string } | null>(null);
   const [isRegister, setIsRegister] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authSuccess, setAuthSuccess] = useState("");
 
   // مساحات العمل
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -123,7 +147,7 @@ export default function HomePage() {
 
   function showToast(msg: string) {
     setToast(msg);
-    setTimeout(() => setToast(""), 3200);
+    setTimeout(() => setToast(""), 3500);
   }
 
   async function joinByCode(u: User, code: string) {
@@ -154,18 +178,88 @@ export default function HomePage() {
       if (currentUser) {
         const profileRef = doc(db, "users_profiles", currentUser.uid);
         const snap = await getDoc(profileRef);
+        const pending = pendingSignupRef.current;
+
         if (snap.exists()) {
-          selectAccountType(snap.data().account_type || "personal");
-        } else {
-          await setDoc(profileRef, {
-            uid: currentUser.uid,
-            full_name: currentUser.displayName || currentUser.email?.split("@")[0] || "مستخدم",
-            avatar_url: currentUser.photoURL || "",
-            account_type: accountTypeRef.current,
-            preferences: {},
-            created_at: new Date().toISOString(),
+          const data = snap.data();
+          const resolvedType = (data.account_type || "personal") as "personal" | "admin";
+          selectAccountType(resolvedType);
+          setUserProfile({
+            full_name:
+              data.full_name ||
+              currentUser.displayName ||
+              currentUser.email?.split("@")[0] ||
+              "مستخدم",
+            username: data.username || "",
+            account_type: resolvedType,
           });
+        } else {
+          const initialName =
+            pending?.full_name ||
+            currentUser.displayName ||
+            currentUser.email?.split("@")[0] ||
+            "مستخدم";
+
+          await setDoc(
+            profileRef,
+            {
+              uid: currentUser.uid,
+              full_name: initialName,
+              username: "",
+              avatar_url: currentUser.photoURL || "",
+              account_type: accountTypeRef.current,
+              preferences: {},
+              created_at: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+
+          setUserProfile({
+            full_name: initialName,
+            username: "",
+            account_type: accountTypeRef.current,
+          });
+
+          if (pending?.full_name) {
+            await updateProfile(currentUser, { displayName: initialName }).catch(() => null);
+          }
         }
+
+        // حفظ اليوزر نيم المختار عند إنشاء الحساب عبر الـ API للتحقق من عدم تكراره
+        if (pending && (pending.username || pending.full_name)) {
+          pendingSignupRef.current = null;
+          try {
+            const token = await currentUser.getIdToken();
+            const res = await fetch("/api/account", {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                full_name:
+                  pending.full_name ||
+                  currentUser.displayName ||
+                  currentUser.email?.split("@")[0] ||
+                  "مستخدم",
+                username: pending.username,
+              }),
+            });
+            const data = await res.json();
+            if (res.ok && data.profile) {
+              setUserProfile((prev) => ({
+                ...prev,
+                full_name: data.profile.full_name,
+                username: data.profile.username,
+              }));
+            } else if (!res.ok && data.error) {
+              showToast(`تم إنشاء الحساب، لكن: ${data.error}`);
+            }
+          } catch {
+            // يمكن تعديل اليوزر نيم لاحقاً من إعدادات الحساب
+          }
+        }
+
         await fetchWorkspaces(currentUser);
 
         if (typeof window !== "undefined" && !autoJoinedRef.current) {
@@ -179,6 +273,8 @@ export default function HomePage() {
       } else {
         setWorkspaces([]);
         setActiveWs(null);
+        setShowAccountSettings(false);
+        setShowSettings(false);
       }
       setLoadingAuth(false);
     });
@@ -262,6 +358,7 @@ export default function HomePage() {
 
   async function handleGoogleLogin() {
     setAuthError("");
+    setAuthSuccess("");
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
     } catch (e: unknown) {
@@ -272,16 +369,31 @@ export default function HomePage() {
   async function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault();
     setAuthError("");
+    setAuthSuccess("");
     try {
       if (isRegister) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const cleanUser = regUsername.trim().replace(/^@+/, "").toLowerCase();
+        if (cleanUser && !/^[a-z0-9._]{3,20}$/.test(cleanUser)) {
+          setAuthError(
+            "اسم المستخدم يجب أن يكون 3–20 حرفاً (أحرف إنجليزية صغيرة، أرقام، نقطة أو _ فقط)."
+          );
+          return;
+        }
+        pendingSignupRef.current = {
+          full_name: regFullName.trim(),
+          username: cleanUser,
+        };
+        await createUserWithEmailAndPassword(auth, email.trim(), password);
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        await signInWithEmailAndPassword(auth, email.trim(), password);
       }
     } catch (err: unknown) {
+      pendingSignupRef.current = null;
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("auth/invalid-credential")) {
-        setAuthError("البريد غير مسجّل أو كلمة المرور خاطئة — إذا كنت جديداً اضغط «أنشئ حسابك الآن» بالأسفل.");
+        setAuthError(
+          "البريد غير مسجّل أو كلمة المرور خاطئة — إذا نسيت كلمة المرور اضغط «نسيت كلمة المرور؟» بالأسفل."
+        );
       } else if (msg.includes("auth/email-already-in-use")) {
         setAuthError("هذا البريد مسجّل مسبقاً، انتقل لتسجيل الدخول.");
       } else if (msg.includes("auth/weak-password")) {
@@ -289,6 +401,36 @@ export default function HomePage() {
       } else {
         setAuthError("حدث خطأ أثناء المصادقة، حاول مجدداً.");
       }
+    }
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError("");
+    setAuthSuccess("");
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setAuthError("أدخل بريدك الإلكتروني أولاً.");
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      setAuthSuccess(
+        "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني. تفقّد صندوق الوارد أو مجلد الرسائل غير المرغوب فيها (Spam)."
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("auth/invalid-email")) {
+        setAuthError("صيغة البريد الإلكتروني غير صحيحة.");
+      } else if (msg.includes("auth/too-many-requests")) {
+        setAuthError("تم إرسال عدة طلبات متتالية، يرجى الانتظار بضع دقائق ثم المحاولة مجدداً.");
+      } else {
+        setAuthError("تعذر إرسال رابط الاستعادة، تأكّد من صحة البريد وحاول مرة أخرى.");
+      }
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -556,67 +698,171 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 mb-5 p-1 rounded-xl bg-slate-900/80 border border-white/10">
-            <button
-              type="button"
-              onClick={() => selectAccountType("admin")}
-              className={`py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
-                accountType === "admin" ? "bg-cyan-500 text-slate-950" : "text-slate-400"
-              }`}
-            >
-              حساب أدمن / أستاذ
-            </button>
-            <button
-              type="button"
-              onClick={() => selectAccountType("personal")}
-              className={`py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
-                accountType === "personal" ? "bg-violet-500 text-white" : "text-slate-400"
-              }`}
-            >
-              حساب شخصي / طالب
-            </button>
-          </div>
+          {isResetMode ? (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-start gap-2.5">
+                <KeyRound className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-cyan-300">استعادة كلمة المرور</p>
+                  <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                    أدخل بريدك الإلكتروني وسنرسل لك رابطاً آمناً لتعيين كلمة مرور جديدة.
+                  </p>
+                </div>
+              </div>
 
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full py-3 rounded-xl bg-white text-slate-950 font-bold text-sm mb-4 hover:bg-slate-200 transition"
-          >
-            المتابعة باستخدام Google
-          </button>
+              <input
+                type="email"
+                required
+                placeholder="البريد الإلكتروني المسجّل"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+              />
 
-          <form onSubmit={handleEmailAuth} className="space-y-3">
-            <input
-              type="email"
-              required
-              placeholder="البريد الإلكتروني"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
-            />
-            <input
-              type="password"
-              required
-              placeholder="كلمة المرور (6 أحرف على الأقل)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
-            />
-            {authError && <p className="text-xs text-rose-400">{authError}</p>}
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-sm text-white hover:opacity-90 transition"
-            >
-              {isRegister ? "إنشاء حساب جديد" : "تسجيل الدخول"}
-            </button>
-          </form>
+              {authError && <p className="text-xs text-rose-400">{authError}</p>}
+              {authSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-xs text-emerald-300 leading-relaxed">
+                  {authSuccess}
+                </div>
+              )}
 
-          <button
-            type="button"
-            onClick={() => setIsRegister(!isRegister)}
-            className="w-full mt-4 text-xs text-slate-400 hover:text-cyan-400"
-          >
-            {isRegister ? "لديك حساب بالفعل؟ سجّل الدخول" : "مستخدم جديد؟ أنشئ حسابك الآن"}
-          </button>
+              <button
+                type="submit"
+                disabled={resetLoading}
+                className="w-full py-3 rounded-xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-sm text-white hover:opacity-90 disabled:opacity-50 transition"
+              >
+                {resetLoading ? "جاري الإرسال..." : "إرسال رابط إعادة التعيين"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsResetMode(false);
+                  setAuthError("");
+                  setAuthSuccess("");
+                }}
+                className="w-full text-xs text-slate-400 hover:text-cyan-400 pt-1"
+              >
+                العودة إلى تسجيل الدخول
+              </button>
+            </form>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-2 mb-5 p-1 rounded-xl bg-slate-900/80 border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => selectAccountType("admin")}
+                  className={`py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
+                    accountType === "admin" ? "bg-cyan-500 text-slate-950" : "text-slate-400"
+                  }`}
+                >
+                  حساب أدمن / أستاذ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectAccountType("personal")}
+                  className={`py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition ${
+                    accountType === "personal" ? "bg-violet-500 text-white" : "text-slate-400"
+                  }`}
+                >
+                  حساب شخصي / طالب
+                </button>
+              </div>
+
+              <button
+                onClick={handleGoogleLogin}
+                className="w-full py-3 rounded-xl bg-white text-slate-950 font-bold text-sm mb-4 hover:bg-slate-200 transition"
+              >
+                المتابعة باستخدام Google
+              </button>
+
+              <form onSubmit={handleEmailAuth} className="space-y-3">
+                {isRegister && (
+                  <>
+                    <input
+                      type="text"
+                      required
+                      placeholder="الاسم الكامل (مثال: يزيد الأشقر)"
+                      value={regFullName}
+                      onChange={(e) => setRegFullName(e.target.value)}
+                      maxLength={60}
+                      className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                    />
+                    <div className="relative">
+                      <AtSign className="w-4 h-4 text-cyan-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        dir="ltr"
+                        placeholder="username (اختياري، مثال: yazed.dev)"
+                        value={regUsername}
+                        onChange={(e) =>
+                          setRegUsername(
+                            e.target.value.replace(/[^a-zA-Z0-9._]/g, "").toLowerCase()
+                          )
+                        }
+                        maxLength={20}
+                        className="w-full pl-9 pr-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <input
+                  type="email"
+                  required
+                  placeholder="البريد الإلكتروني"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                />
+                <input
+                  type="password"
+                  required
+                  placeholder="كلمة المرور (6 أحرف على الأقل)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-900/70 border border-white/10 text-sm text-white focus:outline-none focus:border-cyan-400"
+                />
+
+                {!isRegister && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsResetMode(true);
+                        setAuthError("");
+                        setAuthSuccess("");
+                      }}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 transition"
+                    >
+                      نسيت كلمة المرور؟
+                    </button>
+                  </div>
+                )}
+
+                {authError && <p className="text-xs text-rose-400">{authError}</p>}
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-gradient-to-l from-cyan-500 to-blue-600 font-bold text-sm text-white hover:opacity-90 transition"
+                >
+                  {isRegister ? "إنشاء حساب جديد" : "تسجيل الدخول"}
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegister(!isRegister);
+                  setAuthError("");
+                  setAuthSuccess("");
+                }}
+                className="w-full mt-4 text-xs text-slate-400 hover:text-cyan-400"
+              >
+                {isRegister ? "لديك حساب بالفعل؟ سجّل الدخول" : "مستخدم جديد؟ أنشئ حسابك الآن"}
+              </button>
+            </>
+          )}
         </div>
       </main>
     );
@@ -653,6 +899,22 @@ export default function HomePage() {
               setProposedCard(null);
             }
             setShowSettings(false);
+          }}
+        />
+      )}
+
+      {showAccountSettings && (
+        <AccountSettingsModal
+          user={user}
+          profile={userProfile}
+          onClose={() => setShowAccountSettings(false)}
+          onNotify={showToast}
+          onUpdated={({ full_name, username }) => {
+            setUserProfile((prev) => ({ ...prev, full_name, username }));
+          }}
+          onAccountDeleted={async () => {
+            setShowAccountSettings(false);
+            await signOut(auth).catch(() => null);
           }}
         />
       )}
@@ -725,7 +987,7 @@ export default function HomePage() {
         />
       )}
 
-      {/* الشريط الجانبي (ثابت على الكمبيوتر، وقائمة منزلقة أنيقة على الموبايل) */}
+      {/* الشريط الجانبي */}
       <aside
         className={`fixed inset-y-0 right-0 z-50 w-[86vw] max-w-xs bg-slate-900/95 backdrop-blur-2xl border-l border-white/10 p-5 flex flex-col gap-5 overflow-y-auto transition-transform duration-300 ease-out md:static md:w-80 md:max-w-none md:translate-x-0 md:bg-slate-900/50 md:backdrop-blur-none ${
           mobileMenuOpen ? "translate-x-0 shadow-2xl" : "translate-x-full md:translate-x-0"
@@ -768,11 +1030,34 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs">
-          <p className="font-semibold text-white truncate">{user.displayName || user.email}</p>
-          <p className="text-cyan-400 mt-0.5">
-            {accountType === "admin" ? "حساب إداري (Admin)" : "حساب شخصي (Personal)"}
-          </p>
+        {/* بطاقة المستخدم + زر إعدادات الحساب */}
+        <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-2">
+          <div className="min-w-0 text-xs">
+            <p className="font-semibold text-white truncate">
+              {userProfile.full_name || user.displayName || user.email}
+            </p>
+            {userProfile.username ? (
+              <p className="text-[11px] text-slate-400 truncate" dir="ltr">
+                @{userProfile.username}
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
+            )}
+            <p className="text-cyan-400 mt-0.5 text-[11px]">
+              {accountType === "admin" ? "حساب إداري (Admin)" : "حساب شخصي (Personal)"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setShowAccountSettings(true);
+            }}
+            className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 transition shrink-0"
+            title="إعدادات الحساب"
+          >
+            <UserCog className="w-4 h-4" />
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-950 border border-white/10">
@@ -1178,7 +1463,7 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* شريط الأوامر الذكي (ثابت في أسفل الشاشة على الموبايل لسهولة الوصول) */}
+            {/* شريط الأوامر الذكي */}
             {wsView === "cards" && (
               <div className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-slate-950/90 backdrop-blur-xl border-t border-white/10 md:static md:mx-0 md:p-0 md:mt-6 md:border-0 md:bg-transparent space-y-2">
                 {activeWs && (
