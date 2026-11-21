@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
 import { ProposedActionCardSchema, ProposedActionCard } from "@/lib/schemas/action-cards";
-
-const apiKey = (process.env.GEMINI_API_KEY || "").trim().replace(/^["']|["']$/g, "");
-const ai = new GoogleGenAI({ apiKey });
+import { generateGeminiJson } from "@/lib/gemini";
 
 function buildSmartLocalMock(message: string, knowledgeRules: string): ProposedActionCard {
   const m = message.toLowerCase();
@@ -153,21 +150,11 @@ export async function POST(req: Request) {
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+    const cleanJson = await generateGeminiJson({
       contents: message,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-      },
+      systemInstruction,
     });
 
-    const rawText = response.text;
-    if (!rawText) {
-      return NextResponse.json({ error: "لم يُرجع النموذج استجابة" }, { status: 502 });
-    }
-
-    const cleanJson = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
     const parsed = ProposedActionCardSchema.safeParse(JSON.parse(cleanJson));
     if (!parsed.success) {
       return NextResponse.json(
@@ -180,6 +167,15 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("AI Propose Error:", error);
-    return NextResponse.json({ error: `حدث خطأ أثناء المعالجة: ${details}`, details }, { status: 500 });
+    const isBusy = details.includes("503") || details.includes("UNAVAILABLE");
+    return NextResponse.json(
+      {
+        error: isBusy
+          ? "خوادم Google Gemini مزدحمة لحظياً، جرّب الضغط مرة أخرى بعد ثوانٍ."
+          : `حدث خطأ أثناء المعالجة: ${details}`,
+        details,
+      },
+      { status: isBusy ? 503 : 500 }
+    );
   }
 }

@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { GoogleGenAI } from "@google/genai";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyUserFromRequest } from "@/lib/auth-server";
-
-const apiKey = (process.env.GEMINI_API_KEY || "").trim().replace(/^["']|["']$/g, "");
-const ai = new GoogleGenAI({ apiKey });
+import { generateGeminiJson } from "@/lib/gemini";
 
 const RequestSchema = z.object({
   workspace_id: z.string().min(1),
@@ -130,20 +127,7 @@ export async function POST(req: Request) {
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      },
-    });
-
-    const rawText = response.text;
-    if (!rawText) {
-      return NextResponse.json({ error: "لم يُرجع النموذج تقريراً" }, { status: 502 });
-    }
-
-    const cleanJson = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    const cleanJson = await generateGeminiJson({ contents: prompt });
     const parsed = WeeklyReportSchema.safeParse(JSON.parse(cleanJson));
     if (!parsed.success) {
       return NextResponse.json({ error: "تنسيق التقرير غير صالح" }, { status: 422 });
@@ -160,6 +144,15 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("Weekly Report Error:", error);
-    return NextResponse.json({ error: `تعذر توليد التقرير: ${details}`, details }, { status: 500 });
+    const isBusy = details.includes("503") || details.includes("UNAVAILABLE");
+    return NextResponse.json(
+      {
+        error: isBusy
+          ? "خوادم Google Gemini مزدحمة لحظياً، جرّب الضغط مرة أخرى بعد ثوانٍ."
+          : `تعذر توليد التقرير: ${details}`,
+        details,
+      },
+      { status: isBusy ? 503 : 500 }
+    );
   }
 }
