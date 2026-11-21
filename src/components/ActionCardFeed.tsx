@@ -12,7 +12,12 @@ import {
   Clock,
   Eye,
   Send,
+  Trash2,
+  Lock,
+  Unlock,
+  Download,
 } from "lucide-react";
+import { downloadCsv } from "@/lib/export-csv";
 
 export type SubmissionEntry = {
   user_id: string;
@@ -23,12 +28,19 @@ export type SubmissionEntry = {
   is_late?: boolean;
 };
 
+export type BookedEntry = {
+  uid: string;
+  name: string;
+  booked_at: string;
+};
+
 export type LiveActionCard = {
   id: string;
   workspace_id: string;
   card_type: "slot_booking" | "submission" | "interactive_broadcast" | "policy_request";
   summary: string;
   status: string;
+  is_closed?: boolean;
   created_at: string;
   payload: {
     session_group_title?: string;
@@ -60,6 +72,7 @@ export type ResourceSlot = {
   capacity: number;
   booked_count: number;
   booked_users?: string[];
+  booked_entries?: BookedEntry[];
 };
 
 type Props = {
@@ -70,6 +83,8 @@ type Props = {
   bookingSlotId: string | null;
   interactingCardId: string | null;
   onBookSlot: (slotId: string) => void;
+  onCancelSlot: (slotId: string) => void;
+  onManageCard: (cardId: string, action: "delete" | "toggle_close") => void;
   onAcknowledge: (cardId: string) => void;
   onSubmitProject: (cardId: string, link: string, note: string) => Promise<boolean>;
   onResolveRequest: (
@@ -86,6 +101,71 @@ function formatDate(iso?: string) {
   return d.toLocaleString("ar-SY", { dateStyle: "short", timeStyle: "short" });
 }
 
+function exportSlotsCsv(card: LiveActionCard, cardSlots: ResourceSlot[]) {
+  const rows: (string | number)[][] = [];
+
+  for (const slot of cardSlots) {
+    const entries: BookedEntry[] =
+      slot.booked_entries && slot.booked_entries.length > 0
+        ? slot.booked_entries
+        : (slot.booked_users || []).map((uid) => ({ uid, name: uid, booked_at: "" }));
+
+    if (entries.length === 0) {
+      rows.push([
+        slot.title,
+        formatDate(slot.starts_at),
+        formatDate(slot.ends_at),
+        slot.capacity,
+        slot.booked_count,
+        "لا يوجد حجوزات",
+        "—",
+      ]);
+    } else {
+      for (const entry of entries) {
+        rows.push([
+          slot.title,
+          formatDate(slot.starts_at),
+          formatDate(slot.ends_at),
+          slot.capacity,
+          slot.booked_count,
+          entry.name,
+          entry.booked_at ? formatDate(entry.booked_at) : "حجز سابق",
+        ]);
+      }
+    }
+  }
+
+  const safeName = (card.payload.session_group_title || "slots").replace(
+    /[^\w\u0600-\u06FF-]+/g,
+    "_"
+  );
+  downloadCsv(
+    `حجوزات_${safeName}.csv`,
+    ["الجلسة", "البداية", "النهاية", "السعة", "إجمالي المحجوز", "اسم الطالب", "وقت الحجز"],
+    rows
+  );
+}
+
+function exportSubmissionsCsv(card: LiveActionCard) {
+  const submissions = card.submissions || [];
+  const rows = submissions.map((s) => [
+    s.user_name,
+    s.link,
+    s.note || "",
+    formatDate(s.submitted_at),
+    s.is_late ? "متأخر" : "في الوقت",
+  ]);
+  const safeName = (card.payload.assignment_title || "submissions").replace(
+    /[^\w\u0600-\u06FF-]+/g,
+    "_"
+  );
+  downloadCsv(
+    `تسليمات_${safeName}.csv`,
+    ["اسم الطالب", "رابط المشروع", "الملاحظة", "تاريخ التسليم", "الحالة"],
+    rows
+  );
+}
+
 export default function ActionCardFeed({
   cards,
   slots,
@@ -94,6 +174,8 @@ export default function ActionCardFeed({
   bookingSlotId,
   interactingCardId,
   onBookSlot,
+  onCancelSlot,
+  onManageCard,
   onAcknowledge,
   onSubmitProject,
   onResolveRequest,
@@ -101,6 +183,7 @@ export default function ActionCardFeed({
   const [links, setLinks] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   if (cards.length === 0) {
     return (
@@ -110,10 +193,92 @@ export default function ActionCardFeed({
     );
   }
 
+  function renderAdminToolbar(
+    card: LiveActionCard,
+    isBusy: boolean,
+    onExport?: () => void
+  ) {
+    if (!isAdmin) return null;
+    const isConfirming = confirmDeleteId === card.id;
+
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {onExport && (
+          <button
+            type="button"
+            onClick={onExport}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 text-[11px] font-bold hover:bg-emerald-500/25 transition"
+            title="تصدير كشف Excel / CSV"
+          >
+            <Download className="w-3 h-3" /> تصدير CSV
+          </button>
+        )}
+
+        {(card.card_type === "slot_booking" || card.card_type === "submission") && (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => onManageCard(card.id, "toggle_close")}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition disabled:opacity-50 ${
+              card.is_closed
+                ? "bg-amber-500/20 text-amber-300 border-amber-500/30 hover:bg-amber-500/30"
+                : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"
+            }`}
+            title={card.is_closed ? "إعادة فتح البطاقة" : "إغلاق البطاقة عن التفاعل"}
+          >
+            {card.is_closed ? (
+              <>
+                <Unlock className="w-3 h-3" /> إعادة فتح
+              </>
+            ) : (
+              <>
+                <Lock className="w-3 h-3" /> إغلاق
+              </>
+            )}
+          </button>
+        )}
+
+        {isConfirming ? (
+          <div className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => {
+                setConfirmDeleteId(null);
+                onManageCard(card.id, "delete");
+              }}
+              className="px-2.5 py-1 rounded-lg bg-rose-500 text-white text-[11px] font-bold hover:bg-rose-400 disabled:opacity-50"
+            >
+              تأكيد الحذف
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteId(null)}
+              className="px-2 py-1 rounded-lg bg-white/5 text-slate-300 text-[11px] hover:bg-white/10"
+            >
+              إلغاء
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => setConfirmDeleteId(card.id)}
+            className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition disabled:opacity-50"
+            title="حذف البطاقة نهائياً"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {cards.map((card) => {
         const isBusy = interactingCardId === card.id;
+        const isClosed = Boolean(card.is_closed);
 
         // 1) بطاقة حجز الجلسات والمواعيد
         if (card.card_type === "slot_booking") {
@@ -121,15 +286,26 @@ export default function ActionCardFeed({
           return (
             <div
               key={card.id}
-              className="rounded-3xl border border-cyan-500/25 bg-slate-900/70 p-6 space-y-4"
+              className={`rounded-3xl border bg-slate-900/70 p-6 space-y-4 ${
+                isClosed ? "border-white/10 opacity-85" : "border-cyan-500/25"
+              }`}
             >
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 text-xs font-bold">
-                  <Calendar className="w-3.5 h-3.5" /> بطاقة حجز جلسات
-                </span>
-                {card.payload.location && (
-                  <span className="text-xs text-slate-400">المكان: {card.payload.location}</span>
-                )}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 text-cyan-300 text-xs font-bold">
+                    <Calendar className="w-3.5 h-3.5" /> بطاقة حجز جلسات
+                  </span>
+                  {isClosed && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold">
+                      <Lock className="w-3 h-3" /> مغلقة
+                    </span>
+                  )}
+                  {card.payload.location && (
+                    <span className="text-xs text-slate-400">المكان: {card.payload.location}</span>
+                  )}
+                </div>
+
+                {renderAdminToolbar(card, isBusy, () => exportSlotsCsv(card, cardSlots))}
               </div>
 
               <div>
@@ -141,6 +317,8 @@ export default function ActionCardFeed({
                 {cardSlots.map((slot) => {
                   const isBooked = slot.booked_users?.includes(currentUserId);
                   const isFull = slot.booked_count >= slot.capacity;
+                  const isSlotLoading = bookingSlotId === slot.id;
+
                   return (
                     <div
                       key={slot.id}
@@ -155,27 +333,56 @@ export default function ActionCardFeed({
                         <p className="text-[11px] text-slate-500 mt-1" dir="ltr">
                           {formatDate(slot.starts_at)}
                         </p>
+
+                        {isAdmin && slot.booked_entries && slot.booked_entries.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-white/5 flex flex-wrap gap-1">
+                            {slot.booked_entries.map((entry) => (
+                              <span
+                                key={entry.uid}
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-200 border border-cyan-500/20"
+                              >
+                                {entry.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      <button
-                        onClick={() => onBookSlot(slot.id)}
-                        disabled={isBooked || isFull || bookingSlotId === slot.id}
-                        className={`w-full py-2 rounded-xl text-xs font-bold transition ${
-                          isBooked
-                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                      {isBooked ? (
+                        <div className="flex gap-1.5">
+                          <div className="flex-1 py-2 rounded-xl text-center text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            تم الحجز ✓
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onCancelSlot(slot.id)}
+                            disabled={isSlotLoading}
+                            className="px-2.5 py-2 rounded-xl text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/25 hover:bg-rose-500/25 transition disabled:opacity-50"
+                            title="إلغاء حجزك وتحرير المقعد"
+                          >
+                            {isSlotLoading ? "..." : "إلغاء"}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onBookSlot(slot.id)}
+                          disabled={isClosed || isFull || isSlotLoading}
+                          className={`w-full py-2 rounded-xl text-xs font-bold transition ${
+                            isClosed || isFull
+                              ? "bg-slate-800 text-slate-500 cursor-not-allowed"
+                              : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+                          }`}
+                        >
+                          {isClosed
+                            ? "الحجز مغلق"
                             : isFull
-                            ? "bg-slate-800 text-slate-500"
-                            : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
-                        }`}
-                      >
-                        {isBooked
-                          ? "تم الحجز ✓"
-                          : isFull
-                          ? "مكتمل"
-                          : bookingSlotId === slot.id
-                          ? "جاري الحجز..."
-                          : "احجز مقعدك"}
-                      </button>
+                            ? "مكتمل"
+                            : isSlotLoading
+                            ? "جاري الحجز..."
+                            : "احجز مقعدك"}
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -191,16 +398,27 @@ export default function ActionCardFeed({
           return (
             <div
               key={card.id}
-              className="rounded-3xl border border-indigo-500/30 bg-slate-900/70 p-6 space-y-4"
+              className={`rounded-3xl border bg-slate-900/70 p-6 space-y-4 ${
+                isClosed ? "border-white/10 opacity-85" : "border-indigo-500/30"
+              }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold">
-                  <FileUp className="w-3.5 h-3.5" /> بطاقة تسليم مشروع / وظيفة
-                </span>
-                <span className="inline-flex items-center gap-1 text-xs text-amber-300">
-                  <Clock className="w-3.5 h-3.5" /> آخر موعد:{" "}
-                  <span dir="ltr">{formatDate(card.payload.due_at)}</span>
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold">
+                    <FileUp className="w-3.5 h-3.5" /> بطاقة تسليم مشروع / وظيفة
+                  </span>
+                  {isClosed && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold">
+                      <Lock className="w-3 h-3" /> باب التسليم مغلق
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 text-xs text-amber-300">
+                    <Clock className="w-3.5 h-3.5" /> آخر موعد:{" "}
+                    <span dir="ltr">{formatDate(card.payload.due_at)}</span>
+                  </span>
+                </div>
+
+                {renderAdminToolbar(card, isBusy, () => exportSubmissionsCsv(card))}
               </div>
 
               <div>
@@ -226,44 +444,50 @@ export default function ActionCardFeed({
                 </div>
               )}
 
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const url = (links[card.id] || "").trim();
-                  if (!url) return;
-                  const ok = await onSubmitProject(card.id, url, (notes[card.id] || "").trim());
-                  if (ok) {
-                    setLinks((prev) => ({ ...prev, [card.id]: "" }));
-                    setNotes((prev) => ({ ...prev, [card.id]: "" }));
-                  }
-                }}
-                className="grid sm:grid-cols-12 gap-2"
-              >
-                <input
-                  type="url"
-                  required
-                  dir="ltr"
-                  placeholder="https://drive.google.com/... أو https://github.com/..."
-                  value={links[card.id] || ""}
-                  onChange={(e) => setLinks((p) => ({ ...p, [card.id]: e.target.value }))}
-                  className="sm:col-span-6 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-400"
-                />
-                <input
-                  type="text"
-                  placeholder="ملاحظة اختيارية (مثلاً: أسماء الفريق)"
-                  value={notes[card.id] || ""}
-                  onChange={(e) => setNotes((p) => ({ ...p, [card.id]: e.target.value }))}
-                  className="sm:col-span-4 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-400"
-                />
-                <button
-                  type="submit"
-                  disabled={isBusy}
-                  className="sm:col-span-2 py-2.5 px-3 rounded-xl bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-400 disabled:opacity-50 flex items-center justify-center gap-1"
+              {isClosed ? (
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs text-slate-400">
+                  أغلق الأدمن باب التسليم لهذه البطاقة.
+                </div>
+              ) : (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const url = (links[card.id] || "").trim();
+                    if (!url) return;
+                    const ok = await onSubmitProject(card.id, url, (notes[card.id] || "").trim());
+                    if (ok) {
+                      setLinks((prev) => ({ ...prev, [card.id]: "" }));
+                      setNotes((prev) => ({ ...prev, [card.id]: "" }));
+                    }
+                  }}
+                  className="grid sm:grid-cols-12 gap-2"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  {mySub ? "تحديث" : "تسليم"}
-                </button>
-              </form>
+                  <input
+                    type="url"
+                    required
+                    dir="ltr"
+                    placeholder="https://drive.google.com/... أو https://github.com/..."
+                    value={links[card.id] || ""}
+                    onChange={(e) => setLinks((p) => ({ ...p, [card.id]: e.target.value }))}
+                    className="sm:col-span-6 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="ملاحظة اختيارية (مثلاً: أسماء الفريق)"
+                    value={notes[card.id] || ""}
+                    onChange={(e) => setNotes((p) => ({ ...p, [card.id]: e.target.value }))}
+                    className="sm:col-span-4 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isBusy}
+                    className="sm:col-span-2 py-2.5 px-3 rounded-xl bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-400 disabled:opacity-50 flex items-center justify-center gap-1"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    {mySub ? "تحديث" : "تسليم"}
+                  </button>
+                </form>
+              )}
 
               {isAdmin && (
                 <div className="pt-3 border-t border-white/10 space-y-2">
@@ -314,12 +538,16 @@ export default function ActionCardFeed({
               className="rounded-3xl border border-amber-500/30 bg-slate-900/70 p-6 space-y-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs font-bold">
-                  <Megaphone className="w-3.5 h-3.5" /> إعلان تفاعلي
-                </span>
-                <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                  <Eye className="w-3.5 h-3.5 text-amber-300" /> أكّد الاطلاع: {acked.length}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs font-bold">
+                    <Megaphone className="w-3.5 h-3.5" /> إعلان تفاعلي
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                    <Eye className="w-3.5 h-3.5 text-amber-300" /> أكّد الاطلاع: {acked.length}
+                  </span>
+                </div>
+
+                {renderAdminToolbar(card, isBusy)}
               </div>
 
               <div>
@@ -354,7 +582,6 @@ export default function ActionCardFeed({
 
         // 4) بطاقة الاستعلام وطلب الاستثناء
         if (card.card_type === "policy_request") {
-          // الطالب يرى طلباته فقط، والأدمن يرى جميع طلبات المساحة
           if (!isAdmin && card.requester_id && card.requester_id !== currentUserId) {
             return null;
           }
@@ -372,12 +599,16 @@ export default function ActionCardFeed({
               className="rounded-3xl border border-violet-500/30 bg-slate-900/70 p-6 space-y-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 text-xs font-bold">
-                  <FileQuestion className="w-3.5 h-3.5" /> طلب استثناء — {card.requester_name || "طالب"}
-                </span>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadge.cls}`}>
-                  {statusBadge.text}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 text-xs font-bold">
+                    <FileQuestion className="w-3.5 h-3.5" /> طلب استثناء — {card.requester_name || "طالب"}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusBadge.cls}`}>
+                    {statusBadge.text}
+                  </span>
+                </div>
+
+                {renderAdminToolbar(card, isBusy)}
               </div>
 
               <div className="space-y-1">

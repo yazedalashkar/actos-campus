@@ -373,6 +373,52 @@ export default function HomePage() {
     }
   }
 
+  async function handleCancelSlot(slotId: string) {
+    if (!user) return;
+    setBookingSlotId(slotId);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/slots/book", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ slot_id: slotId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "تعذر إلغاء الحجز");
+        return;
+      }
+      showToast("تم إلغاء حجزك وتحرير المقعد بنجاح");
+    } finally {
+      setBookingSlotId(null);
+    }
+  }
+
+  async function handleManageCard(cardId: string, action: "delete" | "toggle_close") {
+    if (!user) return;
+    setInteractingCardId(cardId);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/action-cards/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ card_id: cardId, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || "تعذر تنفيذ الإجراء");
+        return;
+      }
+      if (action === "delete") {
+        showToast("تم حذف البطاقة وجميع ارتباطاتها بنجاح");
+      } else {
+        showToast(data.is_closed ? "تم إغلاق البطاقة عن التفاعل" : "تم إعادة فتح البطاقة بنجاح");
+      }
+    } finally {
+      setInteractingCardId(null);
+    }
+  }
+
   async function handleAcknowledge(cardId: string) {
     if (!user) return;
     setInteractingCardId(cardId);
@@ -730,13 +776,14 @@ export default function HomePage() {
               )}
 
               {activeWs && activeWs.role === "admin" && (
-  <AdminReportPanel
-    user={user}
-    workspaceId={activeWs.id}
-    initialReport={activeWs.last_weekly_report}
-    onNotify={showToast}
-  />
-)}
+                <AdminReportPanel
+                  user={user}
+                  workspaceId={activeWs.id}
+                  initialReport={activeWs.last_weekly_report}
+                  onNotify={showToast}
+                />
+              )}
+
               {/* معاينة البطاقة المقترحة من الذكاء الاصطناعي */}
               {proposedCard && (
                 <div className="rounded-3xl border border-amber-400/40 bg-gradient-to-br from-slate-900 to-indigo-950/50 p-6 shadow-xl space-y-4">
@@ -848,6 +895,8 @@ export default function HomePage() {
                     bookingSlotId={bookingSlotId}
                     interactingCardId={interactingCardId}
                     onBookSlot={handleBookSlot}
+                    onCancelSlot={handleCancelSlot}
+                    onManageCard={handleManageCard}
                     onAcknowledge={handleAcknowledge}
                     onSubmitProject={handleSubmitProject}
                     onResolveRequest={handleResolveRequest}
