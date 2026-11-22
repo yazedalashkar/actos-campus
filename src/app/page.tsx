@@ -52,6 +52,9 @@ import {
   AtSign,
   Bell,
   WifiOff,
+  CalendarCheck2,
+  FileCheck2,
+  ShieldCheck,
 } from "lucide-react";
 
 type Workspace = {
@@ -115,16 +118,15 @@ export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
 
-  // الإشعارات داخل التطبيق + إشعارات النظام
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
- const seenCardMetaRef = useRef(
-  new Map<string, { status: string; subCount: number }>()
-);
+  const seenCardMetaRef = useRef(
+    new Map<string, { status: string; subCount: number }>()
+  );
   const cardsBootstrappedRef = useRef(false);
-  const seenMsgIdsRef = useRef<Set<string>>(new Set());
+  const seenMsgIdsRef = useRef(new Set<string>());
   const msgsBootstrappedRef = useRef(false);
 
-  // تسجيل الدخول وإنشاء الحساب واستعادة كلمة المرور
+  // تسجيل الدخول
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [regFullName, setRegFullName] = useState("");
@@ -186,7 +188,6 @@ export default function HomePage() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  // تتبّع حالة الاتصال ومزامنة الطابور تلقائياً فور عودة الإنترنت
   useEffect(() => {
     setIsOnline(navigator.onLine);
     const handleOnline = async () => {
@@ -212,7 +213,6 @@ export default function HomePage() {
     };
   }, [showToast]);
 
-  // مزامنة أي عناصر متبقية في الطابور فور تسجيل الدخول
   useEffect(() => {
     if (!user || !navigator.onLine) return;
     flushOfflineQueue(() => user.getIdToken()).then((synced) => {
@@ -257,7 +257,7 @@ export default function HomePage() {
         }
       }
     } catch {
-      // تجاهل خطأ الكاش المحلي
+      // ignore
     }
 
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
@@ -277,7 +277,7 @@ export default function HomePage() {
         }
       }
     } catch {
-      // نعتمد على المساحات المحفوظة في الكاش المحلي
+      // rely on cache
     }
   }
 
@@ -372,7 +372,7 @@ export default function HomePage() {
               showToast(`تم إنشاء الحساب، لكن: ${data.error}`);
             }
           } catch {
-            // يمكن تعديل اليوزر نيم لاحقاً من إعدادات الحساب
+            // ignore
           }
         }
 
@@ -398,7 +398,6 @@ export default function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // الاستماع للبطاقات والجلسات + إطلاق إشعارات ذكية للأدمن والطالب
   useEffect(() => {
     if (!user || !activeWs) {
       setLiveCards([]);
@@ -442,7 +441,6 @@ export default function HomePage() {
         const currSubCount = card.submissions?.length || 0;
 
         if (!prev) {
-          // بطاقة جديدة وصلت
           if (activeWs.role === "admin" && card.card_type === "policy_request") {
             pushAppNotification(
               `طلب استثناء جديد · ${activeWs.name}`,
@@ -458,7 +456,6 @@ export default function HomePage() {
             );
           }
         } else {
-          // تحديث على بطاقة موجودة
           if (activeWs.role === "admin" && currSubCount > prev.subCount) {
             const latestSub = card.submissions?.[currSubCount - 1];
             pushAppNotification(
@@ -501,7 +498,6 @@ export default function HomePage() {
     };
   }, [user, activeWs, pushAppNotification]);
 
-  // إشعار فوري عند وصول رسالة دردشة جديدة من شخص آخر
   useEffect(() => {
     if (!user || !activeWs) return;
     seenMsgIdsRef.current = new Set();
@@ -541,7 +537,6 @@ export default function HomePage() {
     return () => unsub();
   }, [user, activeWs, wsView, pushAppNotification]);
 
-  // خزنة الالتزامات + تذكيرات تلقائية بالمواعيد التي تقترب خلال 24 ساعة
   useEffect(() => {
     if (!user) {
       setLedgerItems([]);
@@ -560,7 +555,6 @@ export default function HomePage() {
         .sort((a, b) => b.due_at.localeCompare(a.due_at));
       setLedgerItems(items);
 
-      // فحص تذكيرات المواعيد القادمة خلال 24 ساعة
       try {
         const remindedKey = `actos_reminded_${user.uid}`;
         const reminded = new Set<string>(JSON.parse(localStorage.getItem(remindedKey) || "[]"));
@@ -585,7 +579,7 @@ export default function HomePage() {
           localStorage.setItem(remindedKey, JSON.stringify(Array.from(reminded)));
         }
       } catch {
-        // تجاهل خطأ التخزين المحلي
+        // ignore
       }
     });
 
@@ -953,8 +947,8 @@ export default function HomePage() {
 
   if (loadingAuth) {
     return (
-      <main className="min-h-[100dvh] flex flex-col items-center justify-center gap-3 bg-[#09090b] text-zinc-400">
-        <div className="w-12 h-12 rounded-xl bg-[#111113] border border-zinc-800 p-2 flex items-center justify-center">
+      <main className="min-h-[100dvh] flex flex-col items-center justify-center gap-3 bg-[#0b0d12] text-zinc-400">
+        <div className="w-12 h-12 rounded-xl bg-[#11141c] border border-white/[0.08] p-2 flex items-center justify-center">
           <Image
             src="/icon.svg"
             alt="Actos Campus"
@@ -964,18 +958,26 @@ export default function HomePage() {
             className="w-full h-full object-contain"
           />
         </div>
-        <span className="text-xs font-mono text-zinc-500">Actos Campus...</span>
+        <span className="text-xs font-mono text-zinc-500">جاري تحميل Actos Campus...</span>
       </main>
     );
   }
 
-  // شاشة تسجيل الدخول (تصميم نظيف وحديث بدون أي خلفيات نيون أو ضبابية مبالغ بها)
+  // شاشة تسجيل الدخول — تصميم هندسي بعمودين على الكمبيوتر وأنيق على الموبايل
   if (!user) {
     return (
-      <main className="min-h-[100dvh] flex items-center justify-center p-4 bg-[#09090b] text-zinc-100">
-        <div className="w-full max-w-sm rounded-xl border border-zinc-800 bg-[#111113] p-6 sm:p-7">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-[#09090b] border border-zinc-800 p-1.5 flex items-center justify-center shrink-0">
+      <main className="min-h-[100dvh] bg-[#0b0d12] text-zinc-100 grid lg:grid-cols-12">
+        {/* العمود التعريفي (يظهر على الشاشات الكبيرة) */}
+        <section
+          className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-between p-12 border-l border-white/[0.07] relative overflow-hidden"
+          style={{
+            backgroundImage:
+              "radial-gradient(rgba(148, 163, 184, 0.14) 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#11141c] border border-white/[0.1] p-1.5 flex items-center justify-center">
               <Image
                 src="/icon.svg"
                 alt="Actos Campus"
@@ -986,216 +988,335 @@ export default function HomePage() {
               />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-zinc-100 tracking-tight">Actos Campus</h1>
-              <p className="text-xs text-zinc-500">التواصل الجامعي القابل للتنفيذ</p>
+              <span className="font-bold text-base text-zinc-100 block leading-none">
+                Actos Campus
+              </span>
+              <span className="text-[11px] font-mono text-zinc-500">academic workspace</span>
             </div>
           </div>
 
-          {isResetMode ? (
-            <form onSubmit={handleResetPassword} className="space-y-3.5">
-              <div className="p-3 rounded-lg bg-[#09090b] border border-zinc-800 flex items-start gap-2.5">
-                <KeyRound className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+          <div className="max-w-lg space-y-6 my-auto">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#11141c] border border-white/[0.08] text-xs text-zinc-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              منصة التواصل الجامعي القابل للتنفيذ
+            </div>
+
+            <h1 className="text-3xl xl:text-4xl font-bold text-zinc-100 leading-snug tracking-tight">
+              أنهِ فوضى مجموعات الدردشة، وحوّل التعليمات إلى إجراءات موثّقة.
+            </h1>
+
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              اكتب ما تريده بالعربية الطبيعية؛ يتكفّل النظام بإنشاء جداول حجز الجلسات، استقبال
+              المشاريع، توثيق الإعلانات، وتذكير كل طالب بالتزاماته تلقائياً — حتى بدون اتصال دائم.
+            </p>
+
+            <div className="grid gap-3 pt-2">
+              <div className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3">
+                <CalendarCheck2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-xs font-semibold text-zinc-200">استعادة كلمة المرور</p>
-                  <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">
-                    أدخل بريدك الإلكتروني وسنرسل لك رابطاً لتعيين كلمة مرور جديدة.
+                  <p className="text-xs font-semibold text-zinc-200">حجوزات وجلسات بدون تضارب</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    إدارة سعات العملي والمناقشات وتصدير كشوفات Excel بضغطة زر.
                   </p>
                 </div>
               </div>
-
-              <input
-                type="email"
-                required
-                placeholder="البريد الإلكتروني المسجّل"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-[#09090b] border border-zinc-800 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
-              />
-
-              {authError && <p className="text-xs text-rose-400">{authError}</p>}
-              {authSuccess && (
-                <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/25 text-xs text-emerald-300 leading-relaxed">
-                  {authSuccess}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={resetLoading}
-                className="w-full py-2.5 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-sm hover:bg-white disabled:opacity-40 transition"
-              >
-                {resetLoading ? "جاري الإرسال..." : "إرسال رابط إعادة التعيين"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsResetMode(false);
-                  setAuthError("");
-                  setAuthSuccess("");
-                }}
-                className="w-full text-xs text-zinc-400 hover:text-zinc-200 pt-1"
-              >
-                العودة إلى تسجيل الدخول
-              </button>
-            </form>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-1 mb-4 p-1 rounded-lg bg-[#09090b] border border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => selectAccountType("admin")}
-                  className={`py-2 rounded-md text-xs font-medium transition ${
-                    accountType === "admin"
-                      ? "bg-zinc-800 text-zinc-100"
-                      : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  أدمن / أستاذ
-                </button>
-                <button
-                  type="button"
-                  onClick={() => selectAccountType("personal")}
-                  className={`py-2 rounded-md text-xs font-medium transition ${
-                    accountType === "personal"
-                      ? "bg-zinc-800 text-zinc-100"
-                      : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  حساب طالب
-                </button>
-              </div>
-
-              <button
-                onClick={handleGoogleLogin}
-                className="w-full py-2.5 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs sm:text-sm mb-4 hover:bg-white transition"
-              >
-                المتابعة باستخدام Google
-              </button>
-
-              <div className="relative mb-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-zinc-800" />
-                </div>
-                <div className="relative flex justify-center text-[11px]">
-                  <span className="px-2 bg-[#111113] text-zinc-500">أو بالبريد الإلكتروني</span>
+              <div className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3">
+                <FileCheck2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-zinc-200">تسليم مشاريع وخزنة التزامات</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    توثيق زمني لكل تسليم وطلب استثناء مع تذكيرات ذكية قبل الموعد.
+                  </p>
                 </div>
               </div>
+              <div className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3">
+                <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-zinc-200">يعمل كتطبيق مثبّت وأوفلاين</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    تصفّح مساحاتك واكتب رسائلك دون إنترنت وستُزامَن فور عودة الشبكة.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
-              <form onSubmit={handleEmailAuth} className="space-y-2.5">
-                {isRegister && (
-                  <>
+          <p className="text-xs text-zinc-600 font-mono" dir="ltr">
+            Actos Campus · Built for real university workflows
+          </p>
+        </section>
+
+        {/* عمود نموذج الدخول */}
+        <section className="lg:col-span-6 xl:col-span-5 flex items-center justify-center p-5 sm:p-8">
+          <div className="w-full max-w-sm space-y-6">
+            {/* الشعار على الموبايل */}
+            <div className="flex lg:hidden items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#11141c] border border-white/[0.09] p-1.5 flex items-center justify-center shrink-0">
+                <Image
+                  src="/icon.svg"
+                  alt="Actos Campus"
+                  width={28}
+                  height={28}
+                  unoptimized
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-zinc-100">Actos Campus</h1>
+                <p className="text-xs text-zinc-500">التواصل الجامعي القابل للتنفيذ</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.08] bg-[#11141c] p-6 sm:p-7 space-y-5 shadow-xl">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-100">
+                  {isResetMode
+                    ? "استعادة كلمة المرور"
+                    : isRegister
+                    ? "إنشاء حساب جديد"
+                    : "تسجيل الدخول"}
+                </h2>
+                <p className="text-xs text-zinc-500 mt-1">
+                  {isResetMode
+                    ? "أدخل بريدك المسجّل لإرسال رابط التعيين."
+                    : isRegister
+                    ? "اختر نوع حسابك وأنشئ مساحتك في ثوانٍ."
+                    : "مرحباً بعودتك إلى مساحاتك الدراسية."}
+                </p>
+              </div>
+
+              {isResetMode ? (
+                <form onSubmit={handleResetPassword} className="space-y-3.5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-zinc-300 block">
+                      البريد الإلكتروني
+                    </label>
                     <input
-                      type="text"
+                      type="email"
                       required
-                      placeholder="الاسم الكامل"
-                      value={regFullName}
-                      onChange={(e) => setRegFullName(e.target.value)}
-                      maxLength={60}
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#09090b] border border-zinc-800 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+                      dir="ltr"
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
                     />
-                    <div className="relative">
-                      <AtSign className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        dir="ltr"
-                        placeholder="username (اختياري)"
-                        value={regUsername}
-                        onChange={(e) =>
-                          setRegUsername(
-                            e.target.value.replace(/[^a-zA-Z0-9._]/g, "").toLowerCase()
-                          )
-                        }
-                        maxLength={20}
-                        className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#09090b] border border-zinc-800 text-sm font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
-                      />
+                  </div>
+
+                  {authError && <p className="text-xs text-rose-400">{authError}</p>}
+                  {authSuccess && (
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300 leading-relaxed">
+                      {authSuccess}
                     </div>
-                  </>
-                )}
+                  )}
 
-                <input
-                  type="email"
-                  required
-                  placeholder="البريد الإلكتروني"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#09090b] border border-zinc-800 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
-                />
-                <input
-                  type="password"
-                  required
-                  placeholder="كلمة المرور (6 أحرف على الأقل)"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-lg bg-[#09090b] border border-zinc-800 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
-                />
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 disabled:opacity-40 transition flex items-center justify-center gap-2"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    {resetLoading ? "جاري الإرسال..." : "إرسال رابط إعادة التعيين"}
+                  </button>
 
-                {!isRegister && (
-                  <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsResetMode(false);
+                      setAuthError("");
+                      setAuthSuccess("");
+                    }}
+                    className="w-full text-xs text-zinc-400 hover:text-zinc-200 pt-1 transition"
+                  >
+                    العودة إلى تسجيل الدخول
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0b0d12] border border-white/[0.07]">
+                    <button
+                      type="button"
+                      onClick={() => selectAccountType("admin")}
+                      className={`py-2 rounded-lg text-xs font-medium transition ${
+                        accountType === "admin"
+                          ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      أدمن / أستاذ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectAccountType("personal")}
+                      className={`py-2 rounded-lg text-xs font-medium transition ${
+                        accountType === "personal"
+                          ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
+                          : "text-zinc-500 hover:text-zinc-300"
+                      }`}
+                    >
+                      حساب طالب
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={handleGoogleLogin}
+                    className="w-full py-2.5 px-4 rounded-lg bg-[#181c27] border border-white/[0.1] text-zinc-100 font-medium text-xs sm:text-sm hover:bg-[#1f2433] transition flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path
+                        fill="#EA4335"
+                        d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.7-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.3 14.8c-.2-.8-.4-1.8-.4-2.8s.2-2 .4-2.8L1.6 6.4C.6 8.3 0 10.1 0 12s.6 3.7 1.6 5.6l3.7-2.8z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 20.4 7.4 23 12 23z"
+                      />
+                    </svg>
+                    المتابعة باستخدام Google
+                  </button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/[0.07]" />
+                    </div>
+                    <div className="relative flex justify-center text-[11px]">
+                      <span className="px-2.5 bg-[#11141c] text-zinc-500">أو بالبريد الإلكتروني</span>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleEmailAuth} className="space-y-3">
+                    {isRegister && (
+                      <>
+                        <input
+                          type="text"
+                          required
+                          placeholder="الاسم الكامل"
+                          value={regFullName}
+                          onChange={(e) => setRegFullName(e.target.value)}
+                          maxLength={60}
+                          className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
+                        />
+                        <div className="relative">
+                          <AtSign className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            dir="ltr"
+                            placeholder="username (اختياري)"
+                            value={regUsername}
+                            onChange={(e) =>
+                              setRegUsername(
+                                e.target.value.replace(/[^a-zA-Z0-9._]/g, "").toLowerCase()
+                              )
+                            }
+                            maxLength={20}
+                            className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <input
+                      type="email"
+                      required
+                      dir="ltr"
+                      placeholder="name@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
+                    />
+                    <input
+                      type="password"
+                      required
+                      placeholder="كلمة المرور (6 أحرف على الأقل)"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
+                    />
+
+                    {!isRegister && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsResetMode(true);
+                            setAuthError("");
+                            setAuthSuccess("");
+                          }}
+                          className="text-xs text-blue-400 hover:text-blue-300 transition"
+                        >
+                          نسيت كلمة المرور؟
+                        </button>
+                      </div>
+                    )}
+
+                    {authError && <p className="text-xs text-rose-400 leading-relaxed">{authError}</p>}
+
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 transition"
+                    >
+                      {isRegister ? "إنشاء الحساب" : "تسجيل الدخول"}
+                    </button>
+                  </form>
+
+                  <p className="text-center text-xs text-zinc-500 pt-1">
+                    {isRegister ? "لديك حساب بالفعل؟ " : "مستخدم جديد؟ "}
                     <button
                       type="button"
                       onClick={() => {
-                        setIsResetMode(true);
+                        setIsRegister(!isRegister);
                         setAuthError("");
                         setAuthSuccess("");
                       }}
-                      className="text-xs text-zinc-400 hover:text-zinc-200 transition"
+                      className="text-blue-400 hover:text-blue-300 font-medium transition"
                     >
-                      نسيت كلمة المرور؟
+                      {isRegister ? "سجّل الدخول" : "أنشئ حسابك الآن"}
                     </button>
-                  </div>
-                )}
-
-                {authError && <p className="text-xs text-rose-400">{authError}</p>}
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 rounded-lg bg-zinc-800 text-zinc-100 border border-zinc-700 font-semibold text-sm hover:bg-zinc-700 transition"
-                >
-                  {isRegister ? "إنشاء حساب جديد" : "تسجيل الدخول"}
-                </button>
-              </form>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsRegister(!isRegister);
-                  setAuthError("");
-                  setAuthSuccess("");
-                }}
-                className="w-full mt-4 text-xs text-zinc-500 hover:text-zinc-300"
-              >
-                {isRegister ? "لديك حساب بالفعل؟ سجّل الدخول" : "مستخدم جديد؟ أنشئ حسابك الآن"}
-              </button>
-            </>
-          )}
-        </div>
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
       </main>
     );
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[#09090b] text-zinc-100 flex flex-col md:flex-row">
+    <main className="min-h-[100dvh] bg-[#0b0d12] text-zinc-100 flex flex-col md:flex-row">
       {toast && (
-        <div className="fixed bottom-20 md:bottom-5 left-4 right-4 md:right-auto md:max-w-md z-50 px-4 py-2.5 rounded-lg bg-[#18181b] border border-zinc-700 text-zinc-200 text-xs shadow-lg text-center md:text-right">
+        <div className="fixed bottom-20 md:bottom-5 left-4 right-4 md:right-auto md:max-w-md z-50 px-4 py-2.5 rounded-xl bg-[#181c27] border border-white/[0.12] text-zinc-100 text-xs shadow-2xl text-center md:text-right">
           {toast}
         </div>
       )}
 
-      {/* نافذة سجل الإشعارات داخل التطبيق */}
+      {/* سجل الإشعارات */}
       {showNotifications && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-start justify-center sm:justify-end p-4 sm:p-6">
-          <div className="w-full max-w-sm rounded-xl border border-zinc-800 bg-[#111113] shadow-2xl overflow-hidden mt-10 sm:mt-0">
-            <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+        <div
+          onClick={() => setShowNotifications(false)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px] flex items-start justify-center sm:justify-end p-4 sm:p-6"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl border border-white/[0.09] bg-[#11141c] shadow-2xl overflow-hidden mt-10 sm:mt-0"
+          >
+            <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
-                <Bell className="w-3.5 h-3.5 text-zinc-400" /> الإشعارات والتذكيرات
+                <Bell className="w-3.5 h-3.5 text-blue-400" /> الإشعارات والتذكيرات
               </span>
               <div className="flex items-center gap-2">
                 {notifications.length > 0 && (
                   <button
                     type="button"
                     onClick={() => setNotifications([])}
-                    className="text-[11px] text-zinc-500 hover:text-zinc-300"
+                    className="text-[11px] text-zinc-500 hover:text-zinc-200"
                   >
                     مسح الكل
                   </button>
@@ -1203,13 +1324,13 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setShowNotifications(false)}
-                  className="p-1 rounded text-zinc-500 hover:text-zinc-200"
+                  className="p-1 rounded-lg text-zinc-500 hover:text-zinc-200"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
-            <div className="max-h-80 overflow-y-auto divide-y divide-zinc-800/80">
+            <div className="max-h-80 overflow-y-auto divide-y divide-white/[0.06]">
               {notifications.length === 0 ? (
                 <p className="p-6 text-center text-xs text-zinc-500">
                   لا توجد إشعارات جديدة حالياً.
@@ -1278,13 +1399,13 @@ export default function HomePage() {
         />
       )}
 
-      {/* شريط علوي ثابت للموبايل */}
-      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#09090b]/95 border-b border-zinc-800">
+      {/* الشريط العلوي للموبايل */}
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#0b0d12]/95 backdrop-blur-md border-b border-white/[0.07]">
         <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="p-2 rounded-lg bg-[#111113] border border-zinc-800 text-zinc-200 shrink-0"
+            className="p-2 rounded-lg bg-[#11141c] border border-white/[0.08] text-zinc-200 shrink-0"
             aria-label="فتح القائمة"
           >
             <Menu className="w-4 h-4" />
@@ -1312,12 +1433,12 @@ export default function HomePage() {
               setShowNotifications(true);
               setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
             }}
-            className="relative p-2 rounded-lg bg-[#111113] border border-zinc-800 text-zinc-300"
+            className="relative p-2 rounded-lg bg-[#11141c] border border-white/[0.08] text-zinc-300"
             aria-label="الإشعارات"
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-zinc-100 text-zinc-950 text-[10px] font-mono font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] font-mono font-bold flex items-center justify-center">
                 {unreadCount}
               </span>
             )}
@@ -1325,7 +1446,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => setActiveTab(activeTab === "ledger" ? "workspace" : "ledger")}
-            className="px-2.5 py-1.5 rounded-lg bg-[#111113] border border-zinc-800 text-xs font-medium text-zinc-200"
+            className="px-2.5 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.08] text-xs font-medium text-zinc-200"
           >
             {activeTab === "ledger" ? "المساحة" : `خزنتي (${ledgerItems.length})`}
           </button>
@@ -1341,13 +1462,13 @@ export default function HomePage() {
 
       {/* الشريط الجانبي */}
       <aside
-        className={`fixed inset-y-0 right-0 z-50 w-[84vw] max-w-xs bg-[#0d0d0f] border-l border-zinc-800 p-4 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out md:static md:w-72 md:max-w-none md:translate-x-0 ${
+        className={`fixed inset-y-0 right-0 z-50 w-[84vw] max-w-xs bg-[#11141c] border-l border-white/[0.07] p-4 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out md:static md:w-72 md:max-w-none md:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
         }`}
       >
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80">
+        <div className="flex items-center justify-between pb-3 border-b border-white/[0.07]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#141417] border border-zinc-800 p-1 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-[#0b0d12] border border-white/[0.09] p-1 flex items-center justify-center shrink-0">
               <Image
                 src="/icon.svg"
                 alt="Actos Campus"
@@ -1359,7 +1480,7 @@ export default function HomePage() {
             </div>
             <div className="leading-tight">
               <span className="font-semibold text-sm text-zinc-100 block">Actos Campus</span>
-              <span className="text-[10px] font-mono text-zinc-500">v2.0 · workspace</span>
+              <span className="text-[10px] font-mono text-zinc-500">workspace</span>
             </div>
           </div>
 
@@ -1370,17 +1491,17 @@ export default function HomePage() {
                 setShowNotifications(true);
                 setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
               }}
-              className="relative p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/70"
+              className="relative p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] transition"
               title="الإشعارات"
             >
               <Bell className="w-4 h-4" />
               {unreadCount > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-amber-400" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-blue-500" />
               )}
             </button>
             <button
               onClick={() => signOut(auth)}
-              className="p-1.5 rounded-md text-zinc-400 hover:text-rose-400 hover:bg-zinc-800/70"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-white/[0.06] transition"
               title="تسجيل الخروج"
             >
               <LogOut className="w-4 h-4" />
@@ -1388,7 +1509,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(false)}
-              className="md:hidden p-1.5 rounded-md text-zinc-400 hover:text-zinc-100"
+              className="md:hidden p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1396,7 +1517,7 @@ export default function HomePage() {
         </div>
 
         {/* بطاقة الحساب */}
-        <div className="p-3 rounded-lg bg-[#111113] border border-zinc-800 flex items-center justify-between gap-2">
+        <div className="p-3 rounded-xl bg-[#0b0d12] border border-white/[0.07] flex items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-zinc-100 truncate">
               {userProfile.full_name || user.displayName || user.email}
@@ -1411,23 +1532,23 @@ export default function HomePage() {
               setMobileMenuOpen(false);
               setShowAccountSettings(true);
             }}
-            className="p-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-100 hover:border-zinc-600 shrink-0"
+            className="p-1.5 rounded-lg bg-[#181c27] border border-white/[0.08] text-zinc-400 hover:text-zinc-100 hover:border-white/20 shrink-0 transition"
             title="إعدادات الحساب"
           >
             <UserCog className="w-4 h-4" />
           </button>
         </div>
 
-        {/* التنقل الأساسي */}
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-[#111113] border border-zinc-800">
+        {/* التنقل */}
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0b0d12] border border-white/[0.07]">
           <button
             onClick={() => {
               setActiveTab("workspace");
               setMobileMenuOpen(false);
             }}
-            className={`py-1.5 px-2 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition ${
+            className={`py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition ${
               activeTab === "workspace"
-                ? "bg-zinc-800 text-zinc-100"
+                ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
@@ -1438,9 +1559,9 @@ export default function HomePage() {
               setActiveTab("ledger");
               setMobileMenuOpen(false);
             }}
-            className={`py-1.5 px-2 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition ${
+            className={`py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition ${
               activeTab === "ledger"
-                ? "bg-zinc-800 text-zinc-100"
+                ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
@@ -1463,61 +1584,67 @@ export default function HomePage() {
               }}
               className={`w-full text-right px-3 py-2 rounded-lg border text-xs transition flex items-center justify-between gap-2 ${
                 activeWs?.id === ws.id && activeTab === "workspace"
-                  ? "bg-zinc-900 border-zinc-700 text-zinc-100 font-semibold"
-                  : "bg-transparent border-transparent text-zinc-400 hover:bg-zinc-900/60 hover:text-zinc-200"
+                  ? "bg-blue-500/10 border-blue-500/30 text-zinc-100 font-semibold"
+                  : "bg-transparent border-transparent text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
               }`}
             >
               <span className="truncate">{ws.name}</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 shrink-0">
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${
+                  ws.role === "admin"
+                    ? "bg-blue-500/15 text-blue-300"
+                    : "bg-white/[0.06] text-zinc-400"
+                }`}
+              >
                 {ws.role === "admin" ? "أدمن" : "طالب"}
               </span>
             </button>
           ))}
         </div>
 
-        {/* إنشاء مساحة جديدة */}
-        <form onSubmit={handleCreateWorkspace} className="space-y-2 pt-3 border-t border-zinc-800/80">
+        {/* إنشاء مساحة */}
+        <form onSubmit={handleCreateWorkspace} className="space-y-2 pt-3 border-t border-white/[0.07]">
           <p className="text-[11px] font-medium text-zinc-400 flex items-center gap-1">
-            <Plus className="w-3.5 h-3.5" /> إنشاء مساحة جديدة
+            <Plus className="w-3.5 h-3.5 text-blue-400" /> إنشاء مساحة جديدة
           </p>
           <input
             placeholder="اسم المادة أو الشعبة"
             value={newWsName}
             onChange={(e) => setNewWsName(e.target.value)}
-            className="w-full px-3 py-2 text-xs rounded-lg bg-[#111113] border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+            className="w-full px-3 py-2 text-xs rounded-lg bg-[#0b0d12] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
           />
           <textarea
             placeholder="دستور العمل (اختياري)..."
             rows={2}
             value={newWsRules}
             onChange={(e) => setNewWsRules(e.target.value)}
-            className="w-full px-3 py-2 text-xs rounded-lg bg-[#111113] border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
+            className="w-full px-3 py-2 text-xs rounded-lg bg-[#0b0d12] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition resize-none"
           />
           {wsError && <p className="text-xs text-rose-400">{wsError}</p>}
           <button
             type="submit"
             disabled={wsLoading}
-            className="w-full py-2 rounded-lg bg-zinc-100 text-zinc-950 text-xs font-semibold hover:bg-white disabled:opacity-40 transition"
+            className="w-full py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 disabled:opacity-40 transition"
           >
             {wsLoading ? "جاري الإنشاء..." : "إنشاء المساحة"}
           </button>
         </form>
 
         {/* انضمام بكود */}
-        <form onSubmit={handleJoinWorkspace} className="space-y-2 pt-3 border-t border-zinc-800/80">
+        <form onSubmit={handleJoinWorkspace} className="space-y-2 pt-3 border-t border-white/[0.07]">
           <p className="text-[11px] font-medium text-zinc-400 flex items-center gap-1">
-            <Users className="w-3.5 h-3.5" /> انضمام بكود دعوة
+            <Users className="w-3.5 h-3.5 text-zinc-400" /> انضمام بكود دعوة
           </p>
           <div className="flex gap-1.5">
             <input
               placeholder="مثال: LQZ27L"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
-              className="flex-1 min-w-0 px-3 py-2 text-xs font-mono rounded-lg bg-[#111113] border border-zinc-800 text-zinc-100 placeholder:text-zinc-600 uppercase focus:outline-none focus:border-zinc-600"
+              className="flex-1 min-w-0 px-3 py-2 text-xs font-mono rounded-lg bg-[#0b0d12] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 uppercase focus:outline-none focus:border-blue-500/60 transition"
             />
             <button
               type="submit"
-              className="px-3.5 py-2 rounded-lg bg-zinc-800 text-zinc-100 border border-zinc-700 text-xs font-medium hover:bg-zinc-700 shrink-0"
+              className="px-3.5 py-2 rounded-lg bg-[#181c27] text-zinc-200 border border-white/[0.09] text-xs font-medium hover:bg-white/[0.1] shrink-0 transition"
             >
               دخول
             </button>
@@ -1529,9 +1656,9 @@ export default function HomePage() {
       <section className="flex-1 p-4 md:p-6 flex flex-col justify-between max-w-4xl mx-auto w-full min-w-0">
         {activeTab === "ledger" ? (
           <div className="space-y-4">
-            <div className="pb-4 border-b border-zinc-800">
+            <div className="pb-4 border-b border-white/[0.07]">
               <h2 className="text-base sm:text-lg font-semibold text-zinc-100 flex items-center gap-2">
-                <ClipboardList className="w-4 h-4 text-zinc-400" /> خزنة الالتزامات اليومية
+                <ClipboardList className="w-4 h-4 text-blue-400" /> خزنة الالتزامات اليومية
               </h2>
               <p className="text-xs text-zinc-500 mt-1">
                 جميع حجوزاتك وتسليماتك وإعلاناتك المؤكدة مرتّبة زمنياً مع تذكير تلقائي قبل 24 ساعة.
@@ -1539,11 +1666,11 @@ export default function HomePage() {
             </div>
 
             {ledgerItems.length === 0 ? (
-              <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center text-zinc-500 text-xs">
+              <div className="p-8 rounded-xl border border-dashed border-white/[0.09] text-center text-zinc-500 text-xs">
                 لا توجد التزامات مسجّلة بعد.
               </div>
             ) : (
-              <div className="divide-y divide-zinc-800/80 rounded-xl border border-zinc-800 bg-[#111113]">
+              <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-[#11141c]">
                 {ledgerItems.map((item) => (
                   <div
                     key={item.id}
@@ -1561,7 +1688,7 @@ export default function HomePage() {
                         })}
                       </p>
                     </div>
-                    <span className="self-start sm:self-center inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-emerald-300 text-[11px] font-medium shrink-0">
+                    <span className="self-start sm:self-center inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] font-medium shrink-0">
                       <CheckCircle2 className="w-3 h-3" /> {item.status}
                     </span>
                   </div>
@@ -1573,15 +1700,15 @@ export default function HomePage() {
           <>
             <div className="space-y-5 pb-4">
               {activeWs ? (
-                <div className="space-y-3.5 pb-4 border-b border-zinc-800">
+                <div className="space-y-3.5 pb-4 border-b border-white/[0.07]">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-semibold text-zinc-100 truncate">
+                        <h2 className="text-lg font-bold text-zinc-100 truncate">
                           {activeWs.name}
                         </h2>
                         {!isOnline && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/40 border border-amber-500/30 text-amber-300 text-[10px]">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/25 text-amber-300 text-[10px]">
                             <WifiOff className="w-2.5 h-2.5" /> أوفلاين
                           </span>
                         )}
@@ -1599,7 +1726,7 @@ export default function HomePage() {
                           setCopiedCode(true);
                           setTimeout(() => setCopiedCode(false), 1500);
                         }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111113] border border-zinc-800 text-xs hover:border-zinc-600"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.08] text-xs hover:border-white/20 transition"
                       >
                         <strong className="font-mono text-zinc-200 tracking-wider">
                           {activeWs.invite_code}
@@ -1620,12 +1747,12 @@ export default function HomePage() {
                           showToast("تم نسخ رابط الدعوة المباشر");
                           setTimeout(() => setCopiedLink(false), 1800);
                         }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111113] border border-zinc-800 text-zinc-300 text-xs hover:border-zinc-600"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.08] text-zinc-300 text-xs hover:border-white/20 transition"
                       >
                         {copiedLink ? (
                           <Check className="w-3.5 h-3.5 text-emerald-400" />
                         ) : (
-                          <Link2 className="w-3.5 h-3.5 text-zinc-400" />
+                          <Link2 className="w-3.5 h-3.5 text-blue-400" />
                         )}
                         رابط الدعوة
                       </button>
@@ -1633,7 +1760,7 @@ export default function HomePage() {
                       <button
                         type="button"
                         onClick={() => setShowSettings(true)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#111113] border border-zinc-800 text-zinc-300 text-xs hover:border-zinc-600"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.08] text-zinc-300 text-xs hover:border-white/20 transition"
                       >
                         <Settings className="w-3.5 h-3.5 text-zinc-400" />
                         الإعدادات
@@ -1642,13 +1769,13 @@ export default function HomePage() {
                   </div>
 
                   {/* التبديل بين بطاقات الفعل والدردشة */}
-                  <div className="grid grid-cols-2 sm:inline-flex p-1 rounded-lg bg-[#111113] border border-zinc-800 gap-1">
+                  <div className="grid grid-cols-2 sm:inline-flex p-1 rounded-xl bg-[#11141c] border border-white/[0.07] gap-1">
                     <button
                       type="button"
                       onClick={() => setWsView("cards")}
-                      className={`px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition ${
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition ${
                         wsView === "cards"
-                          ? "bg-zinc-800 text-zinc-100"
+                          ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
                           : "text-zinc-500 hover:text-zinc-300"
                       }`}
                     >
@@ -1657,9 +1784,9 @@ export default function HomePage() {
                     <button
                       type="button"
                       onClick={() => setWsView("chat")}
-                      className={`px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition ${
+                      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition ${
                         wsView === "chat"
-                          ? "bg-zinc-800 text-zinc-100"
+                          ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
                           : "text-zinc-500 hover:text-zinc-300"
                       }`}
                     >
@@ -1668,14 +1795,14 @@ export default function HomePage() {
                   </div>
                 </div>
               ) : (
-                <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center space-y-3">
+                <div className="p-8 rounded-xl border border-dashed border-white/[0.09] text-center space-y-3">
                   <p className="text-zinc-500 text-xs">
                     أنشئ أول مساحة عمل أو انضم عبر كود دعوة للبدء.
                   </p>
                   <button
                     type="button"
                     onClick={() => setMobileMenuOpen(true)}
-                    className="md:hidden inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-100 text-zinc-950 text-xs font-semibold"
+                    className="md:hidden inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold"
                   >
                     <Plus className="w-3.5 h-3.5" /> فتح قائمة المساحات
                   </button>
@@ -1702,9 +1829,9 @@ export default function HomePage() {
 
                   {/* معاينة البطاقة المقترحة */}
                   {proposedCard && (
-                    <div className="rounded-xl border border-zinc-700 bg-[#141417] p-4 sm:p-5 space-y-4">
-                      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-800">
-                        <span className="text-xs font-semibold text-amber-300">
+                    <div className="rounded-xl border border-blue-500/30 bg-[#11141c] p-4 sm:p-5 space-y-4">
+                      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/[0.07]">
+                        <span className="text-xs font-semibold text-blue-300">
                           {proposedCard.card_type === "none"
                             ? "رد المساعد الذكي"
                             : proposedCard.card_type === "policy_request"
@@ -1713,7 +1840,7 @@ export default function HomePage() {
                         </span>
                         <button
                           onClick={() => setProposedCard(null)}
-                          className="p-1 rounded text-zinc-500 hover:text-zinc-200"
+                          className="p-1 rounded-lg text-zinc-500 hover:text-zinc-200"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -1735,7 +1862,7 @@ export default function HomePage() {
                             {proposedCard.payload.slots.map((s, i) => (
                               <div
                                 key={i}
-                                className="p-3 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs"
+                                className="p-3 rounded-lg bg-[#0b0d12] border border-white/[0.07] text-xs"
                               >
                                 <p className="font-semibold text-zinc-200">{s.title}</p>
                                 <p className="text-zinc-500 font-mono">السعة: {s.capacity}</p>
@@ -1789,7 +1916,7 @@ export default function HomePage() {
                           <button
                             onClick={handlePublishCard}
                             disabled={publishing}
-                            className="px-4 py-2 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs hover:bg-white disabled:opacity-40 inline-flex items-center gap-1.5"
+                            className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-500 disabled:opacity-40 inline-flex items-center gap-1.5 transition"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             {publishing
@@ -1800,7 +1927,7 @@ export default function HomePage() {
                           </button>
                           <button
                             onClick={() => setProposedCard(null)}
-                            className="px-3.5 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs hover:text-zinc-200"
+                            className="px-3.5 py-2 rounded-lg bg-[#181c27] border border-white/[0.08] text-zinc-400 text-xs hover:text-zinc-200 transition"
                           >
                             إلغاء
                           </button>
@@ -1829,18 +1956,18 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* شريط الأوامر */}
+            {/* شريط الأوامر — بدون شريط تمرير أبيض وبالتفاف أنيق على الكمبيوتر */}
             {wsView === "cards" && (
-              <div className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-[#09090b]/95 border-t border-zinc-800 md:static md:mx-0 md:p-0 md:mt-6 md:border-0 md:bg-transparent space-y-2">
+              <div className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-[#0b0d12]/95 backdrop-blur-md border-t border-white/[0.07] md:static md:mx-0 md:p-0 md:mt-6 md:border-0 md:bg-transparent space-y-2.5">
                 {activeWs && (
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap">
                     {(activeWs.role === "admin" ? QUICK_PROMPTS_ADMIN : QUICK_PROMPTS_STUDENT).map(
                       (q, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => setPrompt(q)}
-                          className="shrink-0 text-[11px] px-2.5 py-1 rounded-md bg-[#111113] border border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 transition"
+                          className="shrink-0 text-[11px] px-3 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.07] text-zinc-400 hover:border-blue-500/40 hover:text-zinc-200 transition"
                         >
                           {q}
                         </button>
@@ -1859,12 +1986,12 @@ export default function HomePage() {
                         ? "اكتب أمراً (جلسات، تسليم مشروع، إعلان، أو طلب استثناء)..."
                         : "اختر أو أنشئ مساحة عمل أولاً..."
                     }
-                    className="flex-1 min-w-0 px-3.5 py-2.5 rounded-lg bg-[#111113] border border-zinc-800 text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500 disabled:opacity-40"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-[#11141c] border border-white/[0.09] text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 disabled:opacity-40 transition"
                   />
                   <button
                     type="submit"
                     disabled={aiLoading || !activeWs}
-                    className="px-4 py-2.5 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs sm:text-sm hover:bg-white flex items-center gap-1.5 shrink-0 disabled:opacity-40 transition"
+                    className="px-4 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-xs sm:text-sm hover:bg-blue-500 flex items-center gap-1.5 shrink-0 disabled:opacity-40 transition"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>{aiLoading ? "..." : "تنفيذ"}</span>
