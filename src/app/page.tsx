@@ -117,7 +117,9 @@ export default function HomePage() {
 
   // الإشعارات داخل التطبيق + إشعارات النظام
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const seenCardMetaRef = useRef>(new Map());
+ const seenCardMetaRef = useRef(
+  new Map<string, { status: string; subCount: number }>()
+);
   const cardsBootstrappedRef = useRef(false);
   const seenMsgIdsRef = useRef<Set<string>>(new Set());
   const msgsBootstrappedRef = useRef(false);
