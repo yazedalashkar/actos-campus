@@ -3,36 +3,69 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
+declare global {
+  interface Window {
+    __ACTOS_APP_READY__?: boolean;
+  }
+}
+
 export default function SplashScreen() {
   const [phase, setPhase] = useState<"enter" | "launch" | "fade" | "done">("enter");
 
   useEffect(() => {
-    // يظهر مرة واحدة في الجلسة حتى لا يعطّل المستخدم عند إعادة التحميل
     if (sessionStorage.getItem("actos_splash_seen") === "1") {
       setPhase("done");
       return;
     }
 
-    // 1. انطلاق الشعار للخارج وتمويه النص (مثل الثانية 4.5 في الفيديو)
-    const launchTimer = setTimeout(() => {
+    let minTimeDone = false;
+    let appReady = Boolean(window.__ACTOS_APP_READY__);
+    let launched = false;
+    let fadeTimer: ReturnType<typeof setTimeout> | null = null;
+    let doneTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const triggerExit = () => {
+      if (launched) return;
+      launched = true;
       setPhase("launch");
-    }, 1450);
 
-    // 2. تلاشي الخلفية لكشف الواجهة تحتها
-    const fadeTimer = setTimeout(() => {
-      setPhase("fade");
-      sessionStorage.setItem("actos_splash_seen", "1");
-    }, 1880);
+      fadeTimer = setTimeout(() => {
+        setPhase("fade");
+        sessionStorage.setItem("actos_splash_seen", "1");
+      }, 420);
 
-    // 3. إزالة العنصر من الـ DOM
-    const doneTimer = setTimeout(() => {
-      setPhase("done");
-    }, 2200);
+      doneTimer = setTimeout(() => {
+        setPhase("done");
+      }, 740);
+    };
+
+    const tryExit = () => {
+      if (minTimeDone && appReady) triggerExit();
+    };
+
+    const minTimer = setTimeout(() => {
+      minTimeDone = true;
+      tryExit();
+    }, 1250);
+
+    // حد أقصى للأمان حتى لا تتأخر الشاشة أبداً على أي جهاز
+    const maxTimer = setTimeout(() => {
+      triggerExit();
+    }, 2500);
+
+    const onReady = () => {
+      appReady = true;
+      tryExit();
+    };
+
+    window.addEventListener("actos-app-ready", onReady);
 
     return () => {
-      clearTimeout(launchTimer);
-      clearTimeout(fadeTimer);
-      clearTimeout(doneTimer);
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+      if (fadeTimer) clearTimeout(fadeTimer);
+      if (doneTimer) clearTimeout(doneTimer);
+      window.removeEventListener("actos-app-ready", onReady);
     };
   }, []);
 
@@ -65,13 +98,13 @@ export default function SplashScreen() {
         <div className={`space-y-1.5 ${isLaunching ? "animate-text-blur-out" : ""}`}>
           <h1
             className="text-2xl sm:text-3xl font-bold text-zinc-100 tracking-tight animate-stagger-up"
-            style={{ animationDelay: "380ms" }}
+            style={{ animationDelay: "320ms" }}
           >
             Actos Campus<span className="text-blue-500">.</span>
           </h1>
           <p
             className="text-xs sm:text-sm text-zinc-400 animate-stagger-up"
-            style={{ animationDelay: "580ms" }}
+            style={{ animationDelay: "500ms" }}
           >
             التواصل الجامعي القابل للتنفيذ
           </p>

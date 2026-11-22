@@ -203,6 +203,7 @@ export default function HomePage() {
     const handleOnline = async () => {
       setIsOnline(true);
       if (auth.currentUser) {
+        fetchWorkspaces(auth.currentUser);
         const synced = await flushOfflineQueue(() => auth.currentUser!.getIdToken());
         if (synced > 0) {
           showToast(`تمت مزامنة ${synced} تعديل/رسالة مع الخادم بنجاح`);
@@ -291,10 +292,66 @@ export default function HomePage() {
     }
   }
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (currentUser) => {
+useEffect(() => {
+    const markAppReady = () => {
+      setLoadingAuth(false);
+      if (typeof window !== "undefined") {
+        (window as Window & { __ACTOS_APP_READY__?: boolean }).__ACTOS_APP_READY__ = true;
+        window.dispatchEvent(new Event("actos-app-ready"));
+      }
+    };
+
+    // مهلة أمان قصوى لعدم التعليق نهائياً أوفلاين
+    const safetyTimer = setTimeout(markAppReady, 2200);
+
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      clearTimeout(safetyTimer);
       setUser(currentUser);
-      if (currentUser) {
+
+      if (!currentUser) {
+        setWorkspaces([]);
+        setActiveWs(null);
+        setShowAccountSettings(false);
+        setShowSettings(false);
+        markAppReady();
+        return;
+      }
+
+      // 1) تحميل فوري من الكاش المحلي قبل أي طلب شبكة
+      try {
+        const cachedProfile = localStorage.getItem(`actos_profile_cache_${currentUser.uid}`);
+        if (cachedProfile) {
+          const parsed = JSON.parse(cachedProfile) as UserProfileState;
+          selectAccountType(parsed.account_type || "personal");
+          setUserProfile(parsed);
+        } else {
+          setUserProfile({
+            full_name:
+              currentUser.displayName || currentUser.email?.split("@")[0] || "مستخدم",
+            username: "",
+            account_type: accountTypeRef.current,
+          });
+        }
+
+        const cachedWs = localStorage.getItem(`actos_ws_cache_${currentUser.uid}`);
+        if (cachedWs) {
+          const parsedWs = JSON.parse(cachedWs) as Workspace[];
+          if (parsedWs.length > 0) {
+            setWorkspaces(parsedWs);
+            setActiveWs((prev) => prev || parsedWs[0]);
+          }
+        }
+      } catch {
+        // تجاهل خطأ الكاش المحلي
+      }
+
+      // 2) إظهار الواجهة فوراً (بلا انتظار لـ Firestore أو API)
+      markAppReady();
+
+      // 3) مزامنة البيانات في الخلفية عند توفر الإنترنت فقط
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+      (async () => {
         const profileRef = doc(db, "users_profiles", currentUser.uid);
         const pending = pendingSignupRef.current;
 
@@ -303,8 +360,7 @@ export default function HomePage() {
           if (snap.exists()) {
             const data = snap.data();
             const resolvedType = (data.account_type || "personal") as "personal" | "admin";
-            selectAccountType(resolvedType);
-            setUserProfile({
+            const nextProfile: UserProfileState = {
               full_name:
                 data.full_name ||
                 currentUser.displayName ||
@@ -312,7 +368,13 @@ export default function HomePage() {
                 "مستخدم",
               username: data.username || "",
               account_type: resolvedType,
-            });
+            };
+            selectAccountType(resolvedType);
+            setUserProfile(nextProfile);
+            localStorage.setItem(
+              `actos_profile_cache_${currentUser.uid}`,
+              JSON.stringify(nextProfile)
+            );
           } else {
             const initialName =
               pending?.full_name ||
@@ -334,22 +396,23 @@ export default function HomePage() {
               { merge: true }
             );
 
-            setUserProfile({
+            const nextProfile: UserProfileState = {
               full_name: initialName,
               username: "",
               account_type: accountTypeRef.current,
-            });
+            };
+            setUserProfile(nextProfile);
+            localStorage.setItem(
+              `actos_profile_cache_${currentUser.uid}`,
+              JSON.stringify(nextProfile)
+            );
 
             if (pending?.full_name) {
               await updateProfile(currentUser, { displayName: initialName }).catch(() => null);
             }
           }
         } catch {
-          setUserProfile({
-            full_name: currentUser.displayName || currentUser.email?.split("@")[0] || "مستخدم",
-            username: "",
-            account_type: accountTypeRef.current,
-          });
+          // نعتمد على بيانات الكاش المحلي عند ضعف الاتصال
         }
 
         if (pending && (pending.username || pending.full_name)) {
@@ -373,16 +436,23 @@ export default function HomePage() {
             });
             const data = await res.json();
             if (res.ok && data.profile) {
-              setUserProfile((prev) => ({
-                ...prev,
-                full_name: data.profile.full_name,
-                username: data.profile.username,
-              }));
+              setUserProfile((prev) => {
+                const updated = {
+                  ...prev,
+                  full_name: data.profile.full_name,
+                  username: data.profile.username,
+                };
+                localStorage.setItem(
+                  `actos_profile_cache_${currentUser.uid}`,
+                  JSON.stringify(updated)
+                );
+                return updated;
+              });
             } else if (!res.ok && data.error) {
               showToast(`تم إنشاء الحساب، لكن: ${data.error}`);
             }
           } catch {
-            // ignore
+            // يمكن تعديل اليوزر نيم لاحقاً من إعدادات الحساب
           }
         }
 
@@ -396,15 +466,13 @@ export default function HomePage() {
             window.history.replaceState({}, "", window.location.pathname);
           }
         }
-      } else {
-        setWorkspaces([]);
-        setActiveWs(null);
-        setShowAccountSettings(false);
-        setShowSettings(false);
-      }
-      setLoadingAuth(false);
+      })();
     });
-    return () => unsub();
+
+    return () => {
+      clearTimeout(safetyTimer);
+      unsub();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -971,21 +1039,7 @@ async function handleEmailAuth(e: React.FormEvent) {
     (activeWs?.role === "admin" || proposedCard.card_type === "policy_request");
 
   if (loadingAuth) {
-    return (
-      <main className="min-h-[100dvh] flex flex-col items-center justify-center gap-3 bg-[#0b0d12] text-zinc-400">
-        <div className="w-12 h-12 rounded-xl bg-[#11141c] border border-white/[0.08] p-2 flex items-center justify-center">
-          <Image
-            src="/icon.svg"
-            alt="Actos Campus"
-            width={32}
-            height={32}
-            unoptimized
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <span className="text-xs font-mono text-zinc-500">جاري تحميل Actos Campus...</span>
-      </main>
-    );
+    return <main className="min-h-[100dvh] bg-[#0b0d12]" />;
   }
 
   // شاشة تسجيل الدخول — تصميم هندسي بعمودين على الكمبيوتر وأنيق على الموبايل
