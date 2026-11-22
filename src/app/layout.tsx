@@ -1,7 +1,7 @@
+import SplashScreen from "@/components/SplashScreen";
 import type { Metadata, Viewport } from "next";
 import PwaManager from "@/components/PwaManager";
 import "./globals.css";
-
 export const viewport: Viewport = {
   themeColor: "#09090b",
   width: "device-width",
@@ -40,6 +40,7 @@ export default function RootLayout({
         style={{ fontFamily: "'Cairo', system-ui, -apple-system, sans-serif" }}
         className="bg-[#09090b] text-zinc-100 antialiased min-h-[100dvh] selection:bg-zinc-800 selection:text-zinc-100"
       >
+        <SplashScreen />
         <PwaManager />
         {children}
       </body>

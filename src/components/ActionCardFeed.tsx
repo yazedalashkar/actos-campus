@@ -265,7 +265,7 @@ export default function ActionCardFeed({
 
   return (
     <div className="space-y-3">
-      {cards.map((card) => {
+      {cards.map((card, index) => {
         const isBusy = interactingCardId === card.id;
         const isClosed = Boolean(card.is_closed);
 
@@ -275,9 +275,10 @@ export default function ActionCardFeed({
           return (
             <article
               key={card.id}
-              className={`rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 ${
+              className={`rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 animate-stagger-up transition-all duration-200 hover:-translate-y-0.5 ${
                 isClosed ? "opacity-75" : ""
               }`}
+              style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
                 <div className="flex flex-wrap items-center gap-2">
@@ -391,9 +392,10 @@ export default function ActionCardFeed({
           return (
             <article
               key={card.id}
-              className={`rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 ${
+              className={`rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 animate-stagger-up transition-all duration-200 hover:-translate-y-0.5 ${
                 isClosed ? "opacity-75" : ""
               }`}
+              style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
                 <div className="flex flex-wrap items-center gap-2">
@@ -534,7 +536,8 @@ export default function ActionCardFeed({
           return (
             <article
               key={card.id}
-              className="rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700"
+              className="rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 animate-stagger-up transition-all duration-200 hover:-translate-y-0.5"
+              style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
                 <div className="flex flex-wrap items-center gap-2">
@@ -602,7 +605,8 @@ export default function ActionCardFeed({
           return (
             <article
               key={card.id}
-              className="rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700"
+              className="rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 animate-stagger-up transition-all duration-200 hover:-translate-y-0.5"
+              style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
                 <div className="flex flex-wrap items-center gap-2">

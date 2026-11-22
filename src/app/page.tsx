@@ -55,6 +55,9 @@ import {
   CalendarCheck2,
   FileCheck2,
   ShieldCheck,
+  Eye,
+  EyeOff,
+  Loader2,
 } from "lucide-react";
 
 type Workspace = {
@@ -137,7 +140,14 @@ export default function HomePage() {
   const [resetLoading, setResetLoading] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authSuccess, setAuthSuccess] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
 
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const showEmailHint = emailTouched && email.trim().length > 0 && !isEmailValid;
+  const showPasswordHint = passwordTouched && password.length > 0 && password.length < 6;
   // مساحات العمل
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWs, setActiveWs] = useState<Workspace | null>(null);
@@ -596,10 +606,23 @@ export default function HomePage() {
     }
   }
 
-  async function handleEmailAuth(e: React.FormEvent) {
+async function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault();
+    setEmailTouched(true);
+    setPasswordTouched(true);
     setAuthError("");
     setAuthSuccess("");
+
+    if (!isEmailValid) {
+      setAuthError("صيغة البريد الإلكتروني غير صحيحة.");
+      return;
+    }
+    if (password.length < 6) {
+      setAuthError("كلمة المرور يجب أن تكون 6 أحرف على الأقل.");
+      return;
+    }
+
+    setAuthSubmitting(true);
     try {
       if (isRegister) {
         const cleanUser = regUsername.trim().replace(/^@+/, "").toLowerCase();
@@ -627,6 +650,8 @@ export default function HomePage() {
       } else {
         setAuthError("حدث خطأ أثناء المصادقة، حاول مجدداً.");
       }
+    } finally {
+      setAuthSubmitting(false);
     }
   }
 
@@ -964,10 +989,37 @@ export default function HomePage() {
   }
 
   // شاشة تسجيل الدخول — تصميم هندسي بعمودين على الكمبيوتر وأنيق على الموبايل
-  if (!user) {
+ if (!user) {
     return (
-      <main className="min-h-[100dvh] bg-[#0b0d12] text-zinc-100 grid lg:grid-cols-12">
-        {/* العمود التعريفي (يظهر على الشاشات الكبيرة) */}
+      <main className="min-h-[100dvh] bg-[#0b0d12] text-zinc-100 flex flex-col lg:grid lg:grid-cols-12 overflow-x-hidden">
+        {/* هيدر مقوّس منسدل للموبايل (يطابق حركة شاشة الدخول في الفيديو) */}
+        <div className="lg:hidden animate-header-drop bg-gradient-to-b from-[#131b2e] to-[#11141c] border-b border-white/[0.08] rounded-b-[28px] px-6 pt-8 pb-7 flex items-center justify-between gap-4 shadow-lg">
+          <div className="space-y-1 animate-slide-inline" style={{ animationDelay: "120ms" }}>
+            <h1 className="text-xl font-bold text-zinc-100 tracking-tight">
+              Actos Campus<span className="text-blue-500">.</span>
+            </h1>
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              تواصل جامعي منظّم،
+              <br />
+              والتزامات موثّقة لحظياً.
+            </p>
+          </div>
+          <div
+            className="w-14 h-14 rounded-2xl bg-[#0b0d12] border border-white/[0.1] p-2.5 flex items-center justify-center shrink-0 animate-stagger-up"
+            style={{ animationDelay: "180ms" }}
+          >
+            <Image
+              src="/icon.svg"
+              alt="Actos Campus"
+              width={36}
+              height={36}
+              unoptimized
+              className="w-full h-full object-contain"
+            />
+          </div>
+        </div>
+
+        {/* العمود التعريفي للكمبيوتر */}
         <section
           className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-between p-12 border-l border-white/[0.07] relative overflow-hidden"
           style={{
@@ -976,7 +1028,7 @@ export default function HomePage() {
             backgroundSize: "24px 24px",
           }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 animate-header-drop">
             <div className="w-10 h-10 rounded-xl bg-[#11141c] border border-white/[0.1] p-1.5 flex items-center justify-center">
               <Image
                 src="/icon.svg"
@@ -989,29 +1041,41 @@ export default function HomePage() {
             </div>
             <div>
               <span className="font-bold text-base text-zinc-100 block leading-none">
-                Actos Campus
+                Actos Campus<span className="text-blue-500">.</span>
               </span>
               <span className="text-[11px] font-mono text-zinc-500">academic workspace</span>
             </div>
           </div>
 
           <div className="max-w-lg space-y-6 my-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#11141c] border border-white/[0.08] text-xs text-zinc-300">
+            <div
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#11141c] border border-white/[0.08] text-xs text-zinc-300 animate-stagger-up"
+              style={{ animationDelay: "80ms" }}
+            >
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
               منصة التواصل الجامعي القابل للتنفيذ
             </div>
 
-            <h1 className="text-3xl xl:text-4xl font-bold text-zinc-100 leading-snug tracking-tight">
+            <h1
+              className="text-3xl xl:text-4xl font-bold text-zinc-100 leading-snug tracking-tight animate-stagger-up"
+              style={{ animationDelay: "150ms" }}
+            >
               أنهِ فوضى مجموعات الدردشة، وحوّل التعليمات إلى إجراءات موثّقة.
             </h1>
 
-            <p className="text-sm text-zinc-400 leading-relaxed">
+            <p
+              className="text-sm text-zinc-400 leading-relaxed animate-stagger-up"
+              style={{ animationDelay: "220ms" }}
+            >
               اكتب ما تريده بالعربية الطبيعية؛ يتكفّل النظام بإنشاء جداول حجز الجلسات، استقبال
               المشاريع، توثيق الإعلانات، وتذكير كل طالب بالتزاماته تلقائياً — حتى بدون اتصال دائم.
             </p>
 
             <div className="grid gap-3 pt-2">
-              <div className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3">
+              <div
+                className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
+                style={{ animationDelay: "290ms" }}
+              >
                 <CalendarCheck2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold text-zinc-200">حجوزات وجلسات بدون تضارب</p>
@@ -1020,7 +1084,10 @@ export default function HomePage() {
                   </p>
                 </div>
               </div>
-              <div className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3">
+              <div
+                className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
+                style={{ animationDelay: "360ms" }}
+              >
                 <FileCheck2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold text-zinc-200">تسليم مشاريع وخزنة التزامات</p>
@@ -1029,7 +1096,10 @@ export default function HomePage() {
                   </p>
                 </div>
               </div>
-              <div className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3">
+              <div
+                className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
+                style={{ animationDelay: "430ms" }}
+              >
                 <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold text-zinc-200">يعمل كتطبيق مثبّت وأوفلاين</p>
@@ -1046,47 +1116,29 @@ export default function HomePage() {
           </p>
         </section>
 
-        {/* عمود نموذج الدخول */}
-        <section className="lg:col-span-6 xl:col-span-5 flex items-center justify-center p-5 sm:p-8">
-          <div className="w-full max-w-sm space-y-6">
-            {/* الشعار على الموبايل */}
-            <div className="flex lg:hidden items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#11141c] border border-white/[0.09] p-1.5 flex items-center justify-center shrink-0">
-                <Image
-                  src="/icon.svg"
-                  alt="Actos Campus"
-                  width={28}
-                  height={28}
-                  unoptimized
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-zinc-100">Actos Campus</h1>
-                <p className="text-xs text-zinc-500">التواصل الجامعي القابل للتنفيذ</p>
-              </div>
-            </div>
-
+        {/* عمود نموذج الدخول بحركة تدرّج متتابعة */}
+        <section className="flex-1 lg:col-span-6 xl:col-span-5 flex items-center justify-center p-5 sm:p-8">
+          <div className="w-full max-w-sm">
             <div className="rounded-2xl border border-white/[0.08] bg-[#11141c] p-6 sm:p-7 space-y-5 shadow-xl">
-              <div>
+              <div className="animate-stagger-up" style={{ animationDelay: "100ms" }}>
                 <h2 className="text-lg font-bold text-zinc-100">
                   {isResetMode
                     ? "استعادة كلمة المرور"
                     : isRegister
                     ? "إنشاء حساب جديد"
-                    : "تسجيل الدخول"}
+                    : "أهلاً بعودتك"}
                 </h2>
                 <p className="text-xs text-zinc-500 mt-1">
                   {isResetMode
                     ? "أدخل بريدك المسجّل لإرسال رابط التعيين."
                     : isRegister
                     ? "اختر نوع حسابك وأنشئ مساحتك في ثوانٍ."
-                    : "مرحباً بعودتك إلى مساحاتك الدراسية."}
+                    : "سجّل الدخول لمتابعة مساحاتك الدراسية."}
                 </p>
               </div>
 
               {isResetMode ? (
-                <form onSubmit={handleResetPassword} className="space-y-3.5">
+                <form onSubmit={handleResetPassword} className="space-y-3.5 animate-stagger-up" style={{ animationDelay: "160ms" }}>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-zinc-300 block">
                       البريد الإلكتروني
@@ -1102,9 +1154,9 @@ export default function HomePage() {
                     />
                   </div>
 
-                  {authError && <p className="text-xs text-rose-400">{authError}</p>}
+                  {authError && <p className="text-xs text-rose-400 animate-hint-in">{authError}</p>}
                   {authSuccess && (
-                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300 leading-relaxed">
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300 leading-relaxed animate-hint-in">
                       {authSuccess}
                     </div>
                   )}
@@ -1112,10 +1164,16 @@ export default function HomePage() {
                   <button
                     type="submit"
                     disabled={resetLoading}
-                    className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 disabled:opacity-40 transition flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 active:scale-[0.985] disabled:opacity-60 transition flex items-center justify-center gap-2"
                   >
-                    <KeyRound className="w-4 h-4" />
-                    {resetLoading ? "جاري الإرسال..." : "إرسال رابط إعادة التعيين"}
+                    {resetLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <KeyRound className="w-4 h-4" />
+                        إرسال رابط إعادة التعيين
+                      </>
+                    )}
                   </button>
 
                   <button
@@ -1132,7 +1190,10 @@ export default function HomePage() {
                 </form>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0b0d12] border border-white/[0.07]">
+                  <div
+                    className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0b0d12] border border-white/[0.07] animate-stagger-up"
+                    style={{ animationDelay: "160ms" }}
+                  >
                     <button
                       type="button"
                       onClick={() => selectAccountType("admin")}
@@ -1157,43 +1218,9 @@ export default function HomePage() {
                     </button>
                   </div>
 
-                  <button
-                    onClick={handleGoogleLogin}
-                    className="w-full py-2.5 px-4 rounded-lg bg-[#181c27] border border-white/[0.1] text-zinc-100 font-medium text-xs sm:text-sm hover:bg-[#1f2433] transition flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                      <path
-                        fill="#EA4335"
-                        d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
-                      />
-                      <path
-                        fill="#4285F4"
-                        d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.7-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.3 14.8c-.2-.8-.4-1.8-.4-2.8s.2-2 .4-2.8L1.6 6.4C.6 8.3 0 10.1 0 12s.6 3.7 1.6 5.6l3.7-2.8z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 20.4 7.4 23 12 23z"
-                      />
-                    </svg>
-                    المتابعة باستخدام Google
-                  </button>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-white/[0.07]" />
-                    </div>
-                    <div className="relative flex justify-center text-[11px]">
-                      <span className="px-2.5 bg-[#11141c] text-zinc-500">أو بالبريد الإلكتروني</span>
-                    </div>
-                  </div>
-
                   <form onSubmit={handleEmailAuth} className="space-y-3">
                     {isRegister && (
-                      <>
+                      <div className="space-y-3 animate-stagger-up" style={{ animationDelay: "180ms" }}>
                         <input
                           type="text"
                           required
@@ -1219,29 +1246,77 @@ export default function HomePage() {
                             className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
                           />
                         </div>
-                      </>
+                      </div>
                     )}
 
-                    <input
-                      type="email"
-                      required
-                      dir="ltr"
-                      placeholder="name@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
-                    />
-                    <input
-                      type="password"
-                      required
-                      placeholder="كلمة المرور (6 أحرف على الأقل)"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
-                    />
+                    {/* حقل البريد مع تحقق حي فوري مثل الفيديو */}
+                    <div className="space-y-1 animate-stagger-up" style={{ animationDelay: "220ms" }}>
+                      <input
+                        type="email"
+                        required
+                        dir="ltr"
+                        placeholder="name@example.com"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value);
+                          if (!emailTouched) setEmailTouched(true);
+                        }}
+                        className={`w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none transition-colors duration-200 ${
+                          showEmailHint
+                            ? "border-rose-500/70 focus:border-rose-400"
+                            : "border-white/[0.09] focus:border-blue-500/70"
+                        }`}
+                      />
+                      {showEmailHint && (
+                        <p className="text-[11px] text-rose-400 px-1 animate-hint-in">
+                          صيغة البريد الإلكتروني غير مكتملة
+                        </p>
+                      )}
+                    </div>
+
+                    {/* حقل كلمة المرور مع زر العين والتحقق الحي */}
+                    <div className="space-y-1 animate-stagger-up" style={{ animationDelay: "280ms" }}>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          required
+                          placeholder="كلمة المرور (6 أحرف على الأقل)"
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            if (!passwordTouched) setPasswordTouched(true);
+                          }}
+                          className={`w-full pl-10 pr-3.5 py-2.5 rounded-lg bg-[#0b0d12] border text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none transition-colors duration-200 ${
+                            showPasswordHint
+                              ? "border-rose-500/70 focus:border-rose-400"
+                              : "border-white/[0.09] focus:border-blue-500/70"
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-200 transition"
+                          aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                      {showPasswordHint && (
+                        <p className="text-[11px] text-rose-400 px-1 animate-hint-in">
+                          استخدم 6 أحرف على الأقل
+                        </p>
+                      )}
+                    </div>
 
                     {!isRegister && (
-                      <div className="flex justify-end">
+                      <div
+                        className="flex justify-end animate-stagger-up"
+                        style={{ animationDelay: "320ms" }}
+                      >
                         <button
                           type="button"
                           onClick={() => {
@@ -1256,17 +1331,70 @@ export default function HomePage() {
                       </div>
                     )}
 
-                    {authError && <p className="text-xs text-rose-400 leading-relaxed">{authError}</p>}
+                    {authError && (
+                      <p className="text-xs text-rose-400 leading-relaxed animate-hint-in">
+                        {authError}
+                      </p>
+                    )}
 
                     <button
                       type="submit"
-                      className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 transition"
+                      disabled={authSubmitting}
+                      style={{ animationDelay: "360ms" }}
+                      className="w-full h-10 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-500 active:scale-[0.985] disabled:opacity-70 transition flex items-center justify-center animate-stagger-up"
                     >
-                      {isRegister ? "إنشاء الحساب" : "تسجيل الدخول"}
+                      {authSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : isRegister ? (
+                        "إنشاء الحساب"
+                      ) : (
+                        "تسجيل الدخول"
+                      )}
                     </button>
                   </form>
 
-                  <p className="text-center text-xs text-zinc-500 pt-1">
+                  <div
+                    className="relative animate-stagger-up"
+                    style={{ animationDelay: "410ms" }}
+                  >
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/[0.07]" />
+                    </div>
+                    <div className="relative flex justify-center text-[11px]">
+                      <span className="px-2.5 bg-[#11141c] text-zinc-500">أو المتابعة عبر</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleGoogleLogin}
+                    style={{ animationDelay: "450ms" }}
+                    className="w-full py-2.5 px-4 rounded-lg bg-[#181c27] border border-white/[0.1] text-zinc-100 font-medium text-xs sm:text-sm hover:bg-[#1f2433] active:scale-[0.985] transition flex items-center justify-center gap-2 animate-stagger-up"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path
+                        fill="#EA4335"
+                        d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
+                      />
+                      <path
+                        fill="#4285F4"
+                        d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.7-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.3 14.8c-.2-.8-.4-1.8-.4-2.8s.2-2 .4-2.8L1.6 6.4C.6 8.3 0 10.1 0 12s.6 3.7 1.6 5.6l3.7-2.8z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5l-3.7 2.8C3.5 20.4 7.4 23 12 23z"
+                      />
+                    </svg>
+                    المتابعة باستخدام Google
+                  </button>
+
+                  <p
+                    className="text-center text-xs text-zinc-500 pt-1 animate-stagger-up"
+                    style={{ animationDelay: "490ms" }}
+                  >
                     {isRegister ? "لديك حساب بالفعل؟ " : "مستخدم جديد؟ "}
                     <button
                       type="button"
@@ -1400,7 +1528,7 @@ export default function HomePage() {
       )}
 
       {/* الشريط العلوي للموبايل */}
-      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#0b0d12]/95 backdrop-blur-md border-b border-white/[0.07]">
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#0b0d12]/95 backdrop-blur-md border-b border-white/[0.07] animate-header-drop">
         <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
@@ -1672,8 +1800,10 @@ export default function HomePage() {
       </aside>
 
       {/* المحتوى الرئيسي */}
-      <section className="flex-1 p-4 md:p-6 flex flex-col justify-between max-w-4xl mx-auto w-full min-w-0">
-        {activeTab === "ledger" ? (
+<section
+        key={`${activeTab}-${wsView}-${activeWs?.id || "none"}`}
+        className="flex-1 p-4 md:p-6 flex flex-col justify-between max-w-4xl mx-auto w-full min-w-0 animate-stagger-up"
+      >        {activeTab === "ledger" ? (
           <div className="space-y-4">
             <div className="pb-4 border-b border-white/[0.07]">
               <h2 className="text-base sm:text-lg font-semibold text-zinc-100 flex items-center gap-2">
