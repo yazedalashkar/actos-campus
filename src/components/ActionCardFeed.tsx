@@ -103,7 +103,6 @@ function formatDate(iso?: string) {
 
 function exportSlotsCsv(card: LiveActionCard, cardSlots: ResourceSlot[]) {
   const rows: (string | number)[][] = [];
-
   for (const slot of cardSlots) {
     const entries: BookedEntry[] =
       slot.booked_entries && slot.booked_entries.length > 0
@@ -134,7 +133,6 @@ function exportSlotsCsv(card: LiveActionCard, cardSlots: ResourceSlot[]) {
       }
     }
   }
-
   const safeName = (card.payload.session_group_title || "slots").replace(
     /[^\w\u0600-\u06FF-]+/g,
     "_"
@@ -187,17 +185,13 @@ export default function ActionCardFeed({
 
   if (cards.length === 0) {
     return (
-      <div className="p-6 rounded-2xl sm:rounded-3xl border border-dashed border-white/10 text-center text-xs text-slate-500">
-        لا توجد بطاقات فعل منشورة في هذه المساحة بعد. اكتب أمراً في الشريط بالأسفل لتوليد أول بطاقة.
+      <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center text-xs text-zinc-500">
+        لا توجد بطاقات فعل منشورة في هذه المساحة بعد. اكتب أمراً في الشريط بالأسفل للبدء.
       </div>
     );
   }
 
-  function renderAdminToolbar(
-    card: LiveActionCard,
-    isBusy: boolean,
-    onExport?: () => void
-  ) {
+  function renderAdminToolbar(card: LiveActionCard, isBusy: boolean, onExport?: () => void) {
     if (!isAdmin) return null;
     const isConfirming = confirmDeleteId === card.id;
 
@@ -207,8 +201,8 @@ export default function ActionCardFeed({
           <button
             type="button"
             onClick={onExport}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 text-[11px] font-bold hover:bg-emerald-500/25 transition"
-            title="تصدير كشف Excel / CSV"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-800 text-[11px] font-medium hover:border-zinc-600 hover:text-white transition"
+            title="تصدير CSV"
           >
             <Download className="w-3 h-3" /> CSV
           </button>
@@ -219,12 +213,7 @@ export default function ActionCardFeed({
             type="button"
             disabled={isBusy}
             onClick={() => onManageCard(card.id, "toggle_close")}
-            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition disabled:opacity-50 ${
-              card.is_closed
-                ? "bg-amber-500/20 text-amber-300 border-amber-500/30 hover:bg-amber-500/30"
-                : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"
-            }`}
-            title={card.is_closed ? "إعادة فتح البطاقة" : "إغلاق البطاقة عن التفاعل"}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-800 text-[11px] font-medium hover:border-zinc-600 hover:text-white transition disabled:opacity-40"
           >
             {card.is_closed ? (
               <>
@@ -247,14 +236,14 @@ export default function ActionCardFeed({
                 setConfirmDeleteId(null);
                 onManageCard(card.id, "delete");
               }}
-              className="px-2.5 py-1.5 rounded-lg bg-rose-500 text-white text-[11px] font-bold hover:bg-rose-400 disabled:opacity-50"
+              className="px-2.5 py-1 rounded-md bg-rose-600 text-white text-[11px] font-medium hover:bg-rose-500 disabled:opacity-40"
             >
               تأكيد
             </button>
             <button
               type="button"
               onClick={() => setConfirmDeleteId(null)}
-              className="px-2 py-1.5 rounded-lg bg-white/5 text-slate-300 text-[11px] hover:bg-white/10"
+              className="px-2 py-1 rounded-md bg-zinc-900 text-zinc-400 border border-zinc-800 text-[11px] hover:text-zinc-200"
             >
               إلغاء
             </button>
@@ -264,8 +253,8 @@ export default function ActionCardFeed({
             type="button"
             disabled={isBusy}
             onClick={() => setConfirmDeleteId(card.id)}
-            className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 transition disabled:opacity-50"
-            title="حذف البطاقة نهائياً"
+            className="p-1.5 rounded-md bg-zinc-900 text-zinc-500 border border-zinc-800 hover:text-rose-400 hover:border-rose-500/40 transition disabled:opacity-40"
+            title="حذف البطاقة"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -275,49 +264,47 @@ export default function ActionCardFeed({
   }
 
   return (
-    <div className="space-y-3.5 sm:space-y-4">
+    <div className="space-y-3">
       {cards.map((card) => {
         const isBusy = interactingCardId === card.id;
         const isClosed = Boolean(card.is_closed);
 
-        // 1) بطاقة حجز الجلسات والمواعيد
+        // 1) بطاقة حجز الجلسات
         if (card.card_type === "slot_booking") {
           const cardSlots = slots.filter((s) => s.card_id === card.id);
           return (
-            <div
+            <article
               key={card.id}
-              className={`rounded-2xl sm:rounded-3xl border bg-slate-900/70 p-4 sm:p-6 space-y-4 ${
-                isClosed ? "border-white/10 opacity-85" : "border-cyan-500/25"
+              className={`rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 ${
+                isClosed ? "opacity-75" : ""
               }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 text-[11px] sm:text-xs font-bold">
-                    <Calendar className="w-3.5 h-3.5" /> حجز جلسات
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                    <Calendar className="w-3 h-3 text-zinc-400" /> حجز جلسات
                   </span>
                   {isClosed && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-950/50 border border-rose-500/20 text-rose-300 text-[11px]">
                       <Lock className="w-3 h-3" /> مغلقة
                     </span>
                   )}
                   {card.payload.location && (
-                    <span className="text-xs text-slate-400">المكان: {card.payload.location}</span>
+                    <span className="text-xs text-zinc-500">{card.payload.location}</span>
                   )}
                 </div>
-
                 {renderAdminToolbar(card, isBusy, () => exportSlotsCsv(card, cardSlots))}
               </div>
 
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-white">
+                <h3 className="text-sm sm:text-base font-semibold text-zinc-100">
                   {card.payload.session_group_title}
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-400 mt-0.5 leading-relaxed">
-                  {card.summary}
-                </p>
+                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{card.summary}</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 {cardSlots.map((slot) => {
                   const isBooked = slot.booked_users?.includes(currentUserId);
                   const isFull = slot.booked_count >= slot.capacity;
@@ -326,24 +313,27 @@ export default function ActionCardFeed({
                   return (
                     <div
                       key={slot.id}
-                      className="p-3.5 sm:p-4 rounded-2xl bg-slate-950/80 border border-white/10 flex flex-col justify-between gap-3"
+                      className="p-3.5 rounded-lg bg-[#0b0b0d] border border-zinc-800 flex flex-col justify-between gap-3"
                     >
                       <div>
-                        <p className="font-bold text-sm text-cyan-300">{slot.title}</p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          المحجوز: <strong className="text-white">{slot.booked_count}</strong> /{" "}
-                          {slot.capacity}
-                        </p>
-                        <p className="text-[11px] text-slate-500 mt-1" dir="ltr">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-semibold text-xs sm:text-sm text-zinc-100">
+                            {slot.title}
+                          </p>
+                          <span className="text-[11px] font-mono tabular-nums text-zinc-400">
+                            {slot.booked_count}/{slot.capacity}
+                          </span>
+                        </div>
+                        <p className="text-[11px] font-mono text-zinc-500 mt-1" dir="ltr">
                           {formatDate(slot.starts_at)}
                         </p>
 
                         {isAdmin && slot.booked_entries && slot.booked_entries.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-white/5 flex flex-wrap gap-1">
+                          <div className="mt-2.5 pt-2 border-t border-zinc-800/80 flex flex-wrap gap-1">
                             {slot.booked_entries.map((entry) => (
                               <span
                                 key={entry.uid}
-                                className="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-200 border border-cyan-500/20"
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-800"
                               >
                                 {entry.name}
                               </span>
@@ -354,15 +344,14 @@ export default function ActionCardFeed({
 
                       {isBooked ? (
                         <div className="flex gap-1.5">
-                          <div className="flex-1 py-2 rounded-xl text-center text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            تم الحجز ✓
+                          <div className="flex-1 py-1.5 rounded-md text-center text-xs font-medium bg-emerald-950/40 text-emerald-300 border border-emerald-500/25">
+                            محجوز ✓
                           </div>
                           <button
                             type="button"
                             onClick={() => onCancelSlot(slot.id)}
                             disabled={isSlotLoading}
-                            className="px-3 py-2 rounded-xl text-[11px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/25 hover:bg-rose-500/25 transition disabled:opacity-50"
-                            title="إلغاء حجزك وتحرير المقعد"
+                            className="px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-rose-300 hover:border-rose-500/30 transition disabled:opacity-40"
                           >
                             {isSlotLoading ? "..." : "إلغاء"}
                           </button>
@@ -372,90 +361,92 @@ export default function ActionCardFeed({
                           type="button"
                           onClick={() => onBookSlot(slot.id)}
                           disabled={isClosed || isFull || isSlotLoading}
-                          className={`w-full py-2.5 sm:py-2 rounded-xl text-xs font-bold transition ${
+                          className={`w-full py-1.5 rounded-md text-xs font-semibold transition ${
                             isClosed || isFull
-                              ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                              : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+                              ? "bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed"
+                              : "bg-zinc-100 text-zinc-950 hover:bg-white"
                           }`}
                         >
                           {isClosed
-                            ? "الحجز مغلق"
+                            ? "مغلق"
                             : isFull
                             ? "مكتمل"
                             : isSlotLoading
                             ? "جاري الحجز..."
-                            : "احجز مقعدك"}
+                            : "حجز مقعد"}
                         </button>
                       )}
                     </div>
                   );
                 })}
               </div>
-            </div>
+            </article>
           );
         }
 
-        // 2) بطاقة تسليم المشاريع والوظائف
+        // 2) بطاقة تسليم المشاريع
         if (card.card_type === "submission") {
           const submissions = card.submissions || [];
           const mySub = submissions.find((s) => s.user_id === currentUserId);
           return (
-            <div
+            <article
               key={card.id}
-              className={`rounded-2xl sm:rounded-3xl border bg-slate-900/70 p-4 sm:p-6 space-y-4 ${
-                isClosed ? "border-white/10 opacity-85" : "border-indigo-500/30"
+              className={`rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 ${
+                isClosed ? "opacity-75" : ""
               }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[11px] sm:text-xs font-bold">
-                    <FileUp className="w-3.5 h-3.5" /> تسليم مشروع
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                    <FileUp className="w-3 h-3 text-zinc-400" /> تسليم مشروع
                   </span>
                   {isClosed && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 text-[11px] font-bold">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-950/50 border border-rose-500/20 text-rose-300 text-[11px]">
                       <Lock className="w-3 h-3" /> مغلق
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-amber-300">
-                    <Clock className="w-3.5 h-3.5" />{" "}
+                  <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-300/90">
+                    <Clock className="w-3 h-3" />
                     <span dir="ltr">{formatDate(card.payload.due_at)}</span>
                   </span>
                 </div>
-
                 {renderAdminToolbar(card, isBusy, () => exportSubmissionsCsv(card))}
               </div>
 
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-white">
+                <h3 className="text-sm sm:text-base font-semibold text-zinc-100">
                   {card.payload.assignment_title}
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-300 mt-1 leading-relaxed">
+                <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
                   {card.payload.description}
                 </p>
               </div>
 
               {mySub && (
-                <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-emerald-300 font-semibold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <div className="p-3 rounded-lg bg-emerald-950/25 border border-emerald-500/20 text-xs flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-emerald-300 font-medium flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                     تم التسليم {mySub.is_late ? "(متأخر)" : "في الوقت"} —{" "}
-                    <span dir="ltr">{formatDate(mySub.submitted_at)}</span>
+                    <span className="font-mono" dir="ltr">
+                      {formatDate(mySub.submitted_at)}
+                    </span>
                   </span>
                   <a
                     href={mySub.link}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-cyan-300 hover:underline inline-flex items-center gap-1"
+                    className="text-zinc-200 hover:underline inline-flex items-center gap-1"
                   >
-                    فتح الرابط <ExternalLink className="w-3.5 h-3.5" />
+                    الرابط <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
               )}
 
               {isClosed ? (
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 text-xs text-slate-400">
+                <p className="text-xs text-zinc-500 bg-[#0b0b0d] border border-zinc-800/80 rounded-lg p-3">
                   أغلق الأدمن باب التسليم لهذه البطاقة.
-                </div>
+                </p>
               ) : (
                 <form
                   onSubmit={async (e) => {
@@ -474,47 +465,47 @@ export default function ActionCardFeed({
                     type="url"
                     required
                     dir="ltr"
-                    placeholder="https://drive.google.com/... أو https://github.com/..."
+                    placeholder="https://github.com/... أو https://drive.google.com/..."
                     value={links[card.id] || ""}
                     onChange={(e) => setLinks((p) => ({ ...p, [card.id]: e.target.value }))}
-                    className="sm:col-span-6 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-400"
+                    className="sm:col-span-6 px-3 py-2 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
                   />
                   <input
                     type="text"
-                    placeholder="ملاحظة اختيارية (مثلاً: أسماء الفريق)"
+                    placeholder="ملاحظة اختيارية (أسماء الفريق...)"
                     value={notes[card.id] || ""}
                     onChange={(e) => setNotes((p) => ({ ...p, [card.id]: e.target.value }))}
-                    className="sm:col-span-4 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white focus:outline-none focus:border-indigo-400"
+                    className="sm:col-span-4 px-3 py-2 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
                   />
                   <button
                     type="submit"
                     disabled={isBusy}
-                    className="sm:col-span-2 py-2.5 px-3 rounded-xl bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-400 disabled:opacity-50 flex items-center justify-center gap-1"
+                    className="sm:col-span-2 py-2 px-3 rounded-lg bg-zinc-100 text-zinc-950 text-xs font-semibold hover:bg-white disabled:opacity-40 flex items-center justify-center gap-1 transition"
                   >
-                    <Send className="w-3.5 h-3.5" />
+                    <Send className="w-3 h-3" />
                     {mySub ? "تحديث" : "تسليم"}
                   </button>
                 </form>
               )}
 
               {isAdmin && (
-                <div className="pt-3 border-t border-white/10 space-y-2">
-                  <p className="text-xs font-bold text-indigo-300">
-                    التسليمات المستلمة ({submissions.length})
+                <div className="pt-3 border-t border-zinc-800/80 space-y-2">
+                  <p className="text-xs font-medium text-zinc-400">
+                    التسليمات المستلمة (<span className="font-mono">{submissions.length}</span>)
                   </p>
                   {submissions.length === 0 ? (
-                    <p className="text-xs text-slate-500">لم يسلم أي طالب بعد.</p>
+                    <p className="text-xs text-zinc-600">لم يسلّم أي طالب بعد.</p>
                   ) : (
-                    <div className="space-y-1.5">
+                    <div className="divide-y divide-zinc-800/80 rounded-lg border border-zinc-800 bg-[#0b0b0d]">
                       {submissions.map((s, idx) => (
                         <div
                           key={idx}
-                          className="p-2.5 rounded-xl bg-slate-950/70 border border-white/5 flex flex-wrap items-center justify-between gap-2 text-xs"
+                          className="p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs"
                         >
                           <div className="min-w-0">
-                            <span className="font-bold text-white">{s.user_name}</span>
-                            {s.note && <span className="text-slate-400"> — {s.note}</span>}
-                            <span className="text-[11px] text-slate-500 block" dir="ltr">
+                            <span className="font-medium text-zinc-200">{s.user_name}</span>
+                            {s.note && <span className="text-zinc-500"> — {s.note}</span>}
+                            <span className="text-[11px] font-mono text-zinc-500 block" dir="ltr">
                               {formatDate(s.submitted_at)} {s.is_late ? "(متأخر)" : ""}
                             </span>
                           </div>
@@ -522,9 +513,9 @@ export default function ActionCardFeed({
                             href={s.link}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 hover:bg-indigo-500/30 inline-flex items-center gap-1 shrink-0"
+                            className="px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600 inline-flex items-center gap-1 shrink-0"
                           >
-                            عرض المشروع <ExternalLink className="w-3 h-3" />
+                            عرض <ExternalLink className="w-3 h-3" />
                           </a>
                         </div>
                       ))}
@@ -532,7 +523,7 @@ export default function ActionCardFeed({
                   )}
                 </div>
               )}
-            </div>
+            </article>
           );
         }
 
@@ -541,31 +532,36 @@ export default function ActionCardFeed({
           const acked = card.acknowledged_users || [];
           const hasAcked = acked.includes(currentUserId);
           return (
-            <div
+            <article
               key={card.id}
-              className="rounded-2xl sm:rounded-3xl border border-amber-500/30 bg-slate-900/70 p-4 sm:p-6 space-y-4"
+              className="rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 text-[11px] sm:text-xs font-bold">
-                    <Megaphone className="w-3.5 h-3.5" /> إعلان تفاعلي
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <Megaphone className="w-3 h-3 text-zinc-400" /> إعلان
                   </span>
-                  <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                    <Eye className="w-3.5 h-3.5 text-amber-300" /> {acked.length}
+                  <span className="inline-flex items-center gap-1 text-xs font-mono text-zinc-500">
+                    <Eye className="w-3.5 h-3.5" /> {acked.length}
                   </span>
                 </div>
-
                 {renderAdminToolbar(card, isBusy)}
               </div>
 
               <div>
-                <h3 className="text-base sm:text-lg font-bold text-white">{card.payload.title}</h3>
-                <p className="text-xs sm:text-sm text-slate-200 mt-1 leading-relaxed">
+                <h3 className="text-sm sm:text-base font-semibold text-zinc-100">
+                  {card.payload.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-zinc-300 mt-1.5 leading-relaxed">
                   {card.payload.body}
                 </p>
                 {card.payload.event_at && (
-                  <p className="text-xs text-amber-300 mt-2">
-                    الموعد المرتبط: <span dir="ltr">{formatDate(card.payload.event_at)}</span>
+                  <p className="text-xs text-zinc-400 mt-2">
+                    الموعد:{" "}
+                    <span className="font-mono text-zinc-300" dir="ltr">
+                      {formatDate(card.payload.event_at)}
+                    </span>
                   </p>
                 )}
               </div>
@@ -573,96 +569,99 @@ export default function ActionCardFeed({
               <button
                 onClick={() => onAcknowledge(card.id)}
                 disabled={hasAcked || isBusy}
-                className={`w-full sm:w-auto justify-center px-5 py-2.5 rounded-xl text-xs font-bold transition inline-flex items-center gap-2 ${
+                className={`w-full sm:w-auto justify-center px-4 py-2 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 ${
                   hasAcked
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                    : "bg-amber-400 text-slate-950 hover:bg-amber-300"
+                    ? "bg-emerald-950/40 text-emerald-300 border border-emerald-500/25"
+                    : "bg-zinc-100 text-zinc-950 hover:bg-white"
                 }`}
               >
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 {hasAcked
-                  ? "تم تسجيل اطلاعك وإضافته لخزنتك ✓"
+                  ? "تم تأكيد الاطلاع ✓"
                   : isBusy
                   ? "جاري التأكيد..."
-                  : "تم الاطلاع (أضفه لخزنتي)"}
+                  : "تأكيد الاطلاع وإضافة للخزنة"}
               </button>
-            </div>
+            </article>
           );
         }
 
-        // 4) بطاقة الاستعلام وطلب الاستثناء
+        // 4) بطاقة طلب الاستثناء
         if (card.card_type === "policy_request") {
           if (!isAdmin && card.requester_id && card.requester_id !== currentUserId) {
             return null;
           }
 
-          const statusBadge =
+          const statusMeta =
             card.status === "approved"
-              ? { text: "تمت الموافقة ✓", cls: "bg-emerald-500/20 text-emerald-300" }
+              ? { text: "موافق عليه", dot: "bg-emerald-400", cls: "text-emerald-300" }
               : card.status === "rejected"
-              ? { text: "مرفوض", cls: "bg-rose-500/20 text-rose-300" }
-              : { text: "بانتظار الأدمن", cls: "bg-amber-500/20 text-amber-300" };
+              ? { text: "مرفوض", dot: "bg-rose-400", cls: "text-rose-300" }
+              : { text: "قيد المراجعة", dot: "bg-amber-400", cls: "text-amber-300" };
 
           return (
-            <div
+            <article
               key={card.id}
-              className="rounded-2xl sm:rounded-3xl border border-violet-500/30 bg-slate-900/70 p-4 sm:p-6 space-y-4"
+              className="rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300 text-[11px] sm:text-xs font-bold">
-                    <FileQuestion className="w-3.5 h-3.5" /> طلب استثناء — {card.requester_name || "طالب"}
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-medium">
+                    <FileQuestion className="w-3 h-3 text-zinc-400" />
+                    طلب استثناء · {card.requester_name || "طالب"}
                   </span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${statusBadge.cls}`}>
-                    {statusBadge.text}
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${statusMeta.cls}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
+                    {statusMeta.text}
                   </span>
                 </div>
-
                 {renderAdminToolbar(card, isBusy)}
               </div>
 
               <div className="space-y-1">
-                <h3 className="text-sm sm:text-base font-bold text-white">
+                <h3 className="text-sm font-semibold text-zinc-100">
                   {card.payload.request_type}
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-300">السبب: {card.payload.reason}</p>
-                <p className="text-xs text-violet-300">المطلوب: {card.payload.requested_change}</p>
+                <p className="text-xs text-zinc-400">السبب: {card.payload.reason}</p>
+                <p className="text-xs text-zinc-300">المطلوب: {card.payload.requested_change}</p>
               </div>
 
               {card.admin_note && (
-                <div className="p-3 rounded-xl bg-slate-950/70 border border-white/10 text-xs text-slate-300">
-                  <strong className="text-white">ملاحظة الأدمن:</strong> {card.admin_note}
+                <div className="p-3 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs text-zinc-300">
+                  <strong className="text-zinc-100">ملاحظة الأدمن:</strong> {card.admin_note}
                 </div>
               )}
 
               {isAdmin && card.status === "proposed" && (
-                <div className="space-y-2 pt-2 border-t border-white/10">
+                <div className="space-y-2 pt-3 border-t border-zinc-800/80">
                   <input
                     type="text"
                     placeholder="ملاحظة اختيارية للطالب..."
                     value={adminNotes[card.id] || ""}
                     onChange={(e) => setAdminNotes((p) => ({ ...p, [card.id]: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-xs text-white"
+                    className="w-full px-3 py-2 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
                   />
                   <div className="grid grid-cols-2 sm:flex gap-2">
                     <button
                       onClick={() => onResolveRequest(card.id, "approved", adminNotes[card.id] || "")}
                       disabled={isBusy}
-                      className="justify-center px-4 py-2.5 sm:py-2 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold hover:bg-emerald-400 inline-flex items-center gap-1.5 disabled:opacity-50"
+                      className="justify-center px-3.5 py-2 rounded-lg bg-zinc-100 text-zinc-950 text-xs font-semibold hover:bg-white inline-flex items-center gap-1.5 disabled:opacity-40"
                     >
-                      <CheckCircle2 className="w-4 h-4" /> موافقة
+                      <CheckCircle2 className="w-3.5 h-3.5" /> موافقة
                     </button>
                     <button
                       onClick={() => onResolveRequest(card.id, "rejected", adminNotes[card.id] || "")}
                       disabled={isBusy}
-                      className="justify-center px-4 py-2.5 sm:py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold hover:bg-rose-500/30 inline-flex items-center gap-1.5 disabled:opacity-50"
+                      className="justify-center px-3.5 py-2 rounded-lg bg-zinc-900 text-rose-300 border border-zinc-800 text-xs font-semibold hover:border-rose-500/40 inline-flex items-center gap-1.5 disabled:opacity-40"
                     >
-                      <XCircle className="w-4 h-4" /> رفض
+                      <XCircle className="w-3.5 h-3.5" /> رفض
                     </button>
                   </div>
                 </div>
               )}
-            </div>
+            </article>
           );
         }
 

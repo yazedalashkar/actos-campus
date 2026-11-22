@@ -1,0 +1,19 @@
+{
+  "name": "Actos Campus",
+  "short_name": "Actos",
+  "description": "منصة التواصل الجامعي وإدارة بطاقات الفعل",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

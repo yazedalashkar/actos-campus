@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { User } from "firebase/auth";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { MessageSquare, Send, Trash2, Shield, AlertCircle } from "lucide-react";
+import { enqueueOfflineRequest } from "@/lib/offline-queue";
+import { MessageSquare, Send, Trash2, Shield, AlertCircle, Clock } from "lucide-react";
 
 export type ChatMessage = {
   id: string;
@@ -14,6 +15,7 @@ export type ChatMessage = {
   sender_role: "admin" | "member";
   text: string;
   created_at: string;
+  pending?: boolean;
 };
 
 type Props = {
@@ -41,6 +43,7 @@ async function safeParseJson(res: Response): Promise<Record<string, unknown>> {
 
 export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -49,6 +52,7 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const fetchViaApi = useCallback(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
     try {
       const token = await user.getIdToken();
       const res = await fetch(`/api/messages?workspace_id=${encodeURIComponent(workspaceId)}`, {
@@ -62,7 +66,7 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
         setChatError(String(data.error || `تعذر جلب الرسائل (${res.status})`));
       }
     } catch {
-      setChatError("تعذر الاتصال بخادم الدردشة");
+      // في حال انقطاع الشبكة نعتمد على بيانات Firestore المخزّنة محلياً
     }
   }, [user, workspaceId]);
 
@@ -85,28 +89,62 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
           .sort((a, b) => a.created_at.localeCompare(b.created_at));
         setMessages(items);
       },
-      () => {
-        setFallbackMode(true);
-      }
+      () => setFallbackMode(true)
     );
 
-    return () => unsub();
+    const onSynced = () => {
+      setPendingMessages([]);
+      fetchViaApi();
+    };
+    window.addEventListener("actos-synced", onSynced);
+
+    return () => {
+      unsub();
+      window.removeEventListener("actos-synced", onSynced);
+    };
   }, [workspaceId, fetchViaApi]);
 
   useEffect(() => {
     if (!fallbackMode) return;
-    const timer = setInterval(fetchViaApi, 5000);
+    const timer = setInterval(fetchViaApi, 6000);
     return () => clearInterval(timer);
   }, [fallbackMode, fetchViaApi]);
 
+  const allMessages = [...messages, ...pendingMessages];
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  }, [allMessages.length]);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     const clean = text.trim();
     if (!clean || sending) return;
+
+    // وضع الأوفلاين: حفظ الرسالة محلياً للرفع التلقائي عند عودة الإنترنت
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      enqueueOfflineRequest({
+        url: "/api/messages",
+        method: "POST",
+        body: { workspace_id: workspaceId, text: clean },
+      });
+      setPendingMessages((prev) => [
+        ...prev,
+        {
+          id: `pending-${Date.now()}`,
+          workspace_id: workspaceId,
+          sender_id: user.uid,
+          sender_name: user.displayName || user.email?.split("@")[0] || "أنت",
+          sender_role: isAdmin ? "admin" : "member",
+          text: clean,
+          created_at: new Date().toISOString(),
+          pending: true,
+        },
+      ]);
+      setText("");
+      onNotify("لا يوجد اتصال بالإنترنت — سيتم إرسال الرسالة تلقائياً فور عودة الاتصال");
+      return;
+    }
 
     setSending(true);
     setChatError("");
@@ -135,10 +173,27 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
       } else {
         await fetchViaApi();
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "حدث خطأ في الاتصال أثناء الإرسال";
-      setChatError(msg);
-      onNotify(msg);
+    } catch {
+      enqueueOfflineRequest({
+        url: "/api/messages",
+        method: "POST",
+        body: { workspace_id: workspaceId, text: clean },
+      });
+      setPendingMessages((prev) => [
+        ...prev,
+        {
+          id: `pending-${Date.now()}`,
+          workspace_id: workspaceId,
+          sender_id: user.uid,
+          sender_name: user.displayName || user.email?.split("@")[0] || "أنت",
+          sender_role: isAdmin ? "admin" : "member",
+          text: clean,
+          created_at: new Date().toISOString(),
+          pending: true,
+        },
+      ]);
+      setText("");
+      onNotify("انقطع الاتصال — تم حفظ الرسالة وستُرسل تلقائياً عند توفر الشبكة");
     } finally {
       setSending(false);
     }
@@ -169,44 +224,48 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
   }
 
   return (
-    <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-slate-900/70 backdrop-blur-xl flex flex-col h-[calc(100dvh-260px)] min-h-[380px] md:h-[540px] overflow-hidden">
-      <div className="px-4 sm:px-5 py-3 border-b border-white/10 flex items-center justify-between bg-slate-950/50">
+    <div className="rounded-xl border border-zinc-800 bg-[#111113] flex flex-col h-[calc(100dvh-250px)] min-h-[380px] md:h-[540px] overflow-hidden">
+      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between bg-[#0d0d0f]">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-cyan-400" />
-          <h3 className="text-xs sm:text-sm font-bold text-white">المحادثة الفورية للشعبة</h3>
+          <MessageSquare className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-xs font-semibold text-zinc-200">المحادثة الفورية</h3>
         </div>
-        <span className="text-[11px] text-slate-400">{messages.length} رسالة</span>
+        <span className="text-[11px] font-mono tabular-nums text-zinc-500">
+          {allMessages.length} رسالة
+        </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2.5 sm:space-y-3">
-        {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 text-xs gap-2 px-4">
-            <MessageSquare className="w-8 h-8 text-slate-700" />
-            <p>لا توجد رسائل بعد. ابدأ أول محادثة مع أعضاء المساحة!</p>
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
+        {allMessages.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center text-zinc-500 text-xs gap-2 px-4">
+            <MessageSquare className="w-6 h-6 text-zinc-700" />
+            <p>لا توجد رسائل بعد. ابدأ المحادثة مع أعضاء المساحة.</p>
           </div>
         ) : (
-          messages.map((msg) => {
+          allMessages.map((msg) => {
             const isMine = msg.sender_id === user.uid;
-            const canDelete = isMine || isAdmin;
+            const canDelete = !msg.pending && (isMine || isAdmin);
             return (
               <div
                 key={msg.id}
                 className={`flex flex-col ${isMine ? "items-start" : "items-end"}`}
               >
                 <div
-                  className={`max-w-[90%] sm:max-w-[82%] rounded-2xl px-3.5 py-2.5 border space-y-1 ${
-                    isMine
-                      ? "bg-cyan-500/15 border-cyan-400/30 text-white"
-                      : "bg-slate-950/80 border-white/10 text-slate-200"
+                  className={`max-w-[88%] sm:max-w-[78%] rounded-xl px-3.5 py-2.5 border space-y-1 ${
+                    msg.pending
+                      ? "bg-amber-950/20 border-amber-500/30 text-zinc-200"
+                      : isMine
+                      ? "bg-zinc-900 border-zinc-700/80 text-zinc-100"
+                      : "bg-[#16161a] border-zinc-800 text-zinc-200"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-xs font-bold text-cyan-300 truncate">
+                      <span className="text-xs font-semibold text-zinc-200 truncate">
                         {msg.sender_name}
                       </span>
                       {msg.sender_role === "admin" && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-md bg-cyan-500/20 text-cyan-200 shrink-0">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
                           <Shield className="w-2.5 h-2.5" /> أدمن
                         </span>
                       )}
@@ -216,19 +275,26 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
                         type="button"
                         disabled={deletingId === msg.id}
                         onClick={() => handleDelete(msg.id)}
-                        className="text-slate-500 hover:text-rose-400 transition disabled:opacity-40 shrink-0"
+                        className="text-zinc-600 hover:text-rose-400 transition disabled:opacity-40 shrink-0"
                         title="حذف الرسالة"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-words text-zinc-200">
                     {msg.text}
                   </p>
-                  <p className="text-[10px] text-slate-500" dir="ltr">
-                    {formatTime(msg.created_at)}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 pt-0.5">
+                    <p className="text-[10px] font-mono text-zinc-500" dir="ltr">
+                      {formatTime(msg.created_at)}
+                    </p>
+                    {msg.pending && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-amber-400">
+                        <Clock className="w-2.5 h-2.5" /> بانتظار الاتصال
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -238,29 +304,29 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
       </div>
 
       {chatError && (
-        <div className="px-4 py-2 bg-rose-500/15 border-t border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="px-4 py-2 bg-rose-950/40 border-t border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{chatError}</span>
         </div>
       )}
 
       <form
         onSubmit={handleSend}
-        className="p-2.5 sm:p-3 border-t border-white/10 bg-slate-950/60 flex gap-2"
+        className="p-2.5 border-t border-zinc-800 bg-[#0d0d0f] flex gap-2"
       >
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="اكتب رسالة فورية..."
+          placeholder="اكتب رسالة..."
           maxLength={1000}
-          className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-400"
+          className="flex-1 min-w-0 px-3.5 py-2 rounded-lg bg-[#161619] border border-zinc-800 text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
         />
         <button
           type="submit"
           disabled={sending || !text.trim()}
-          className="px-3.5 sm:px-4 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs sm:text-sm hover:bg-cyan-400 disabled:opacity-50 inline-flex items-center gap-1.5 shrink-0"
+          className="px-3.5 py-2 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs hover:bg-white disabled:opacity-40 inline-flex items-center gap-1.5 shrink-0 transition"
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">إرسال</span>
         </button>
       </form>
