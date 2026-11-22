@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { User } from "firebase/auth";
 import {
   X,
@@ -13,6 +13,8 @@ import {
   Trash2,
   LogOut,
   AlertTriangle,
+  Ban,
+  UserCheck,
 } from "lucide-react";
 
 type MemberItem = {
@@ -20,7 +22,13 @@ type MemberItem = {
   role: "admin" | "member";
   joined_at: string;
   full_name: string;
-  avatar_url?: string;
+  username?: string;
+};
+
+type BannedItem = {
+  uid: string;
+  full_name: string;
+  username?: string;
 };
 
 type Props = {
@@ -47,7 +55,9 @@ export default function WorkspaceSettingsModal({
   onNotify,
 }: Props) {
   const [members, setMembers] = useState<MemberItem[]>([]);
+  const [banned, setBanned] = useState<BannedItem[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [busyUid, setBusyUid] = useState<string | null>(null);
   const [name, setName] = useState(workspace.name);
   const [rules, setRules] = useState(workspace.knowledge_rules_text || "");
   const [saving, setSaving] = useState(false);
@@ -60,29 +70,56 @@ export default function WorkspaceSettingsModal({
       ? `${window.location.origin}/?join=${workspace.invite_code}`
       : `/?join=${workspace.invite_code}`;
 
-  useEffect(() => {
-    let active = true;
-    async function loadMembers() {
-      setLoadingMembers(true);
-      try {
-        const token = await user.getIdToken();
-        const res = await fetch(
-          `/api/workspaces/manage?workspace_id=${encodeURIComponent(workspace.id)}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (res.ok && active) {
-          const data = await res.json();
-          setMembers(data.members || []);
-        }
-      } finally {
-        if (active) setLoadingMembers(false);
+  const loadMembers = useCallback(async () => {
+    setLoadingMembers(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch(
+        `/api/workspaces/manage?workspace_id=${encodeURIComponent(workspace.id)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data.members || []);
+        setBanned(data.banned || []);
       }
+    } finally {
+      setLoadingMembers(false);
     }
-    loadMembers();
-    return () => {
-      active = false;
-    };
   }, [user, workspace.id]);
+
+  useEffect(() => {
+    loadMembers();
+  }, [loadMembers]);
+
+  async function handleBanAction(targetUid: string, action: "ban" | "unban") {
+    setBusyUid(targetUid);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/workspaces/manage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          workspace_id: workspace.id,
+          target_uid: targetUid,
+          action,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        onNotify(data.error || "تعذر تنفيذ الإجراء");
+        return;
+      }
+      onNotify(
+        action === "ban"
+          ? "تم حظر المستخدم وإزالته من المساحة"
+          : "تم فك الحظر عن المستخدم بنجاح"
+      );
+      await loadMembers();
+    } finally {
+      setBusyUid(null);
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -150,7 +187,6 @@ export default function WorkspaceSettingsModal({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-lg max-h-[88dvh] flex flex-col rounded-2xl border border-white/[0.09] bg-[#11141c] shadow-2xl overflow-hidden"
       >
-        {/* الرأس الثابت */}
         <div className="px-5 py-4 border-b border-white/[0.07] flex items-center justify-between shrink-0">
           <h3 className="text-sm sm:text-base font-semibold text-zinc-100 flex items-center gap-2">
             <Users className="w-4 h-4 text-blue-400" /> إدارة وتعديل المساحة
@@ -164,7 +200,6 @@ export default function WorkspaceSettingsModal({
           </button>
         </div>
 
-        {/* المحتوى القابل للتمرير */}
         <div className="p-5 overflow-y-auto space-y-5">
           {/* رابط الدعوة */}
           <div className="p-3.5 rounded-xl bg-[#0b0d12] border border-white/[0.07] space-y-2">
@@ -222,10 +257,10 @@ export default function WorkspaceSettingsModal({
             </form>
           )}
 
-          {/* قائمة الأعضاء */}
+          {/* قائمة الطلاب والأعضاء المنضمين */}
           <div className="space-y-2.5 pt-4 border-t border-white/[0.07]">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-zinc-300">الأعضاء المنضمون</p>
+              <p className="text-xs font-medium text-zinc-300">الطلاب والأعضاء في المساحة</p>
               <span className="text-[11px] font-mono text-zinc-500">{members.length}</span>
             </div>
 
@@ -234,7 +269,7 @@ export default function WorkspaceSettingsModal({
             ) : members.length === 0 ? (
               <p className="text-xs text-zinc-500">لا يوجد أعضاء بعد.</p>
             ) : (
-              <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.07] bg-[#0b0d12] max-h-48 overflow-y-auto">
+              <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.07] bg-[#0b0d12] max-h-56 overflow-y-auto">
                 {members.map((m) => (
                   <div
                     key={m.uid}
@@ -244,23 +279,89 @@ export default function WorkspaceSettingsModal({
                       <div className="w-7 h-7 rounded-lg bg-[#181c27] border border-white/[0.08] text-zinc-200 flex items-center justify-center font-semibold text-xs shrink-0">
                         {m.full_name.slice(0, 1).toUpperCase()}
                       </div>
-                      <span className="font-medium text-zinc-200 truncate">{m.full_name}</span>
+                      <div className="min-w-0">
+                        <span className="font-medium text-zinc-200 block truncate">
+                          {m.full_name}
+                        </span>
+                        {m.username && (
+                          <span className="text-[10px] font-mono text-zinc-500 block" dir="ltr">
+                            @{m.username}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[10px] font-medium inline-flex items-center gap-1 shrink-0 ${
-                        m.role === "admin"
-                          ? "bg-blue-500/15 text-blue-300 border border-blue-500/20"
-                          : "bg-white/[0.05] text-zinc-400 border border-white/[0.06]"
-                      }`}
-                    >
-                      {m.role === "admin" && <Shield className="w-2.5 h-2.5" />}
-                      {m.role === "admin" ? "أدمن" : "طالب"}
-                    </span>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-medium inline-flex items-center gap-1 ${
+                          m.role === "admin"
+                            ? "bg-blue-500/15 text-blue-300 border border-blue-500/20"
+                            : "bg-white/[0.05] text-zinc-400 border border-white/[0.06]"
+                        }`}
+                      >
+                        {m.role === "admin" && <Shield className="w-2.5 h-2.5" />}
+                        {m.role === "admin" ? "أدمن" : "طالب"}
+                      </span>
+
+                      {workspace.role === "admin" && m.role !== "admin" && m.uid !== user.uid && (
+                        <button
+                          type="button"
+                          disabled={busyUid === m.uid}
+                          onClick={() => handleBanAction(m.uid, "ban")}
+                          className="px-2 py-1 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20 hover:bg-rose-500/20 text-[10px] font-medium inline-flex items-center gap-1 disabled:opacity-40 transition"
+                          title="حظر المستخدم من المساحة"
+                        >
+                          <Ban className="w-3 h-3" />
+                          {busyUid === m.uid ? "..." : "حظر"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {/* قائمة المحظورين (للأدمن فقط) */}
+          {workspace.role === "admin" && banned.length > 0 && (
+            <div className="space-y-2.5 pt-4 border-t border-white/[0.07]">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-rose-300 flex items-center gap-1.5">
+                  <Ban className="w-3.5 h-3.5" /> المستخدمون المحظورون
+                </p>
+                <span className="text-[11px] font-mono text-zinc-500">{banned.length}</span>
+              </div>
+
+              <div className="divide-y divide-white/[0.06] rounded-xl border border-rose-500/20 bg-[#0b0d12]">
+                {banned.map((b) => (
+                  <div
+                    key={b.uid}
+                    className="px-3 py-2.5 flex items-center justify-between gap-2 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <span className="font-medium text-zinc-300 block truncate">
+                        {b.full_name}
+                      </span>
+                      {b.username && (
+                        <span className="text-[10px] font-mono text-zinc-500 block" dir="ltr">
+                          @{b.username}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={busyUid === b.uid}
+                      onClick={() => handleBanAction(b.uid, "unban")}
+                      className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 text-[10px] font-medium inline-flex items-center gap-1 shrink-0 disabled:opacity-40 transition"
+                    >
+                      <UserCheck className="w-3 h-3" />
+                      {busyUid === b.uid ? "..." : "فك الحظر"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* منطقة الخطر */}
           <div className="p-4 rounded-xl bg-rose-500/[0.05] border border-rose-500/20 space-y-3">

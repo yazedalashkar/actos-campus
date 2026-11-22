@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { adminDb } from "@/lib/firebase-admin";
 import { verifyUserFromRequest } from "@/lib/auth-server";
+import { containsProfanity } from "@/lib/profanity";
 
 const SendMessageSchema = z.object({
   workspace_id: z.string().min(1),
@@ -66,10 +67,28 @@ export async function POST(req: Request) {
     }
 
     const { workspace_id, text } = parsed.data;
-    const [memberSnap, profileSnap] = await Promise.all([
+
+    // فحص الكلمات المسيئة قبل الحفظ
+    if (containsProfanity(text)) {
+      return NextResponse.json(
+        { error: "تم منع الرسالة لاحتوائها على ألفاظ غير لائقة." },
+        { status: 400 }
+      );
+    }
+
+    const [wsSnap, memberSnap, profileSnap] = await Promise.all([
+      adminDb.collection("workspaces").doc(workspace_id).get(),
       adminDb.collection("workspace_members").doc(`${workspace_id}_${user.uid}`).get(),
       adminDb.collection("users_profiles").doc(user.uid).get(),
     ]);
+
+    const bannedUsers: string[] = wsSnap.data()?.banned_users || [];
+    if (bannedUsers.includes(user.uid)) {
+      return NextResponse.json(
+        { error: "تم حظرك من هذه المساحة بواسطة الأدمن." },
+        { status: 403 }
+      );
+    }
 
     if (!memberSnap.exists) {
       return NextResponse.json({ error: "لست عضواً في هذه المساحة" }, { status: 403 });

@@ -1650,6 +1650,25 @@ export default function HomePage() {
             </button>
           </div>
         </form>
+        {/* توقيع المطوّر */}
+        <div className="mt-auto pt-3 border-t border-white/[0.06] text-center">
+          <a
+            href="https://www.facebook.com/lia.yazed"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex flex-col items-center gap-0.5 text-[11px] text-zinc-500 hover:text-zinc-200 transition"
+          >
+            <span>
+              تم التصميم بواسطة{" "}
+              <strong className="text-zinc-300 group-hover:text-blue-400 transition">
+                يازد الأشقر
+              </strong>
+            </span>
+            <span className="text-[10px] font-mono text-zinc-600 group-hover:text-zinc-400 transition" dir="ltr">
+              Yazed Alashkar
+            </span>
+          </a>
+        </div>
       </aside>
 
       {/* المحتوى الرئيسي */}
