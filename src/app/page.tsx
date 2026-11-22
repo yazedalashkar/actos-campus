@@ -782,7 +782,7 @@ export default function HomePage() {
                     <input
                       type="text"
                       required
-                      placeholder="الاسم الكامل (مثال: يزيد الأشقر)"
+                      placeholder="الاسم الكامل (مثال: يازد الأشقر)"
                       value={regFullName}
                       onChange={(e) => setRegFullName(e.target.value)}
                       maxLength={60}
