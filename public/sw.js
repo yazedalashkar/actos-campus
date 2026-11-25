@@ -1,4 +1,4 @@
-const CACHE_NAME = "actos-campus-v2";
+const CACHE_NAME = "actos-campus-v3";
 const STATIC_ASSETS = ["/", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (event) => {

@@ -185,7 +185,7 @@ export default function WorkspaceSettingsModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg max-h-[88dvh] flex flex-col rounded-2xl border border-white/[0.09] bg-[#11141c] shadow-2xl overflow-hidden"
+        className="w-full max-w-lg max-h-[88dvh] flex flex-col rounded-2xl border border-white/[0.09] bg-[#112731] shadow-2xl overflow-hidden"
       >
         <div className="px-5 py-4 border-b border-white/[0.07] flex items-center justify-between shrink-0">
           <h3 className="text-sm sm:text-base font-semibold text-zinc-100 flex items-center gap-2">
@@ -201,8 +201,7 @@ export default function WorkspaceSettingsModal({
         </div>
 
         <div className="p-5 overflow-y-auto space-y-5">
-          {/* رابط الدعوة */}
-          <div className="p-3.5 rounded-xl bg-[#0b0d12] border border-white/[0.07] space-y-2">
+          <div className="p-3.5 rounded-xl bg-[#0c1a20] border border-white/[0.07] space-y-2">
             <p className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
               <Link2 className="w-3.5 h-3.5 text-blue-400" /> رابط الدعوة المباشر
             </p>
@@ -211,7 +210,7 @@ export default function WorkspaceSettingsModal({
                 readOnly
                 dir="ltr"
                 value={inviteLink}
-                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[#11141c] border border-white/[0.08] text-xs font-mono text-zinc-300 focus:outline-none"
+                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[#112731] border border-white/[0.08] text-xs font-mono text-zinc-300 focus:outline-none"
               />
               <button
                 type="button"
@@ -229,7 +228,6 @@ export default function WorkspaceSettingsModal({
             </div>
           </div>
 
-          {/* تعديل الإعدادات للأدمن */}
           {workspace.role === "admin" && (
             <form onSubmit={handleSave} className="space-y-3 pt-1">
               <p className="text-xs font-medium text-zinc-300">تعديل اسم المساحة ودستور العمل</p>
@@ -237,14 +235,14 @@ export default function WorkspaceSettingsModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="اسم المساحة"
-                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.08] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0c1a20] border border-white/[0.08] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
               />
               <textarea
                 rows={3}
                 value={rules}
                 onChange={(e) => setRules(e.target.value)}
                 placeholder="دستور العمل: قواعد الغياب، شروط التسليم، أوقات التواصل..."
-                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.08] text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition resize-none"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0c1a20] border border-white/[0.08] text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition resize-none"
               />
               <button
                 type="submit"
@@ -257,7 +255,6 @@ export default function WorkspaceSettingsModal({
             </form>
           )}
 
-          {/* قائمة الطلاب والأعضاء المنضمين */}
           <div className="space-y-2.5 pt-4 border-t border-white/[0.07]">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-zinc-300">الطلاب والأعضاء في المساحة</p>
@@ -269,14 +266,14 @@ export default function WorkspaceSettingsModal({
             ) : members.length === 0 ? (
               <p className="text-xs text-zinc-500">لا يوجد أعضاء بعد.</p>
             ) : (
-              <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.07] bg-[#0b0d12] max-h-56 overflow-y-auto">
+              <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.07] bg-[#0c1a20] max-h-56 overflow-y-auto">
                 {members.map((m) => (
                   <div
                     key={m.uid}
                     className="px-3 py-2.5 flex items-center justify-between gap-2 text-xs"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-[#181c27] border border-white/[0.08] text-zinc-200 flex items-center justify-center font-semibold text-xs shrink-0">
+                      <div className="w-7 h-7 rounded-lg bg-[#17333f] border border-white/[0.08] text-zinc-200 flex items-center justify-center font-semibold text-xs shrink-0">
                         {m.full_name.slice(0, 1).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -322,7 +319,6 @@ export default function WorkspaceSettingsModal({
             )}
           </div>
 
-          {/* قائمة المحظورين (للأدمن فقط) */}
           {workspace.role === "admin" && banned.length > 0 && (
             <div className="space-y-2.5 pt-4 border-t border-white/[0.07]">
               <div className="flex items-center justify-between">
@@ -332,7 +328,7 @@ export default function WorkspaceSettingsModal({
                 <span className="text-[11px] font-mono text-zinc-500">{banned.length}</span>
               </div>
 
-              <div className="divide-y divide-white/[0.06] rounded-xl border border-rose-500/20 bg-[#0b0d12]">
+              <div className="divide-y divide-white/[0.06] rounded-xl border border-rose-500/20 bg-[#0c1a20]">
                 {banned.map((b) => (
                   <div
                     key={b.uid}
@@ -363,7 +359,6 @@ export default function WorkspaceSettingsModal({
             </div>
           )}
 
-          {/* منطقة الخطر */}
           <div className="p-4 rounded-xl bg-rose-500/[0.05] border border-rose-500/20 space-y-3">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />

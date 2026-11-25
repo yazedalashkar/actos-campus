@@ -4,8 +4,8 @@
   "description": "منصة التواصل الجامعي وإدارة بطاقات الفعل",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#09090b",
+  "background_color": "#0c1a20",
+  "theme_color": "#0c1a20",
   "dir": "rtl",
   "lang": "ar",
   "icons": [

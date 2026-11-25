@@ -129,7 +129,7 @@ export default function HomePage() {
   const seenMsgIdsRef = useRef(new Set<string>());
   const msgsBootstrappedRef = useRef(false);
 
-  // تسجيل الدخول
+  // تسجيل الدخول والتحقق الحي
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [regFullName, setRegFullName] = useState("");
@@ -148,6 +148,7 @@ export default function HomePage() {
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const showEmailHint = emailTouched && email.trim().length > 0 && !isEmailValid;
   const showPasswordHint = passwordTouched && password.length > 0 && password.length < 6;
+
   // مساحات العمل
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWs, setActiveWs] = useState<Workspace | null>(null);
@@ -197,6 +198,42 @@ export default function HomePage() {
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  async function fetchWorkspaces(u: User) {
+    const cacheKey = `actos_ws_cache_${u.uid}`;
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached) as Workspace[];
+        if (parsed.length > 0) {
+          setWorkspaces(parsed);
+          setActiveWs((prev) => prev || parsed[0]);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    try {
+      const token = await u.getIdToken();
+      const res = await fetch("/api/workspaces", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const list = (data.workspaces || []) as Workspace[];
+        setWorkspaces(list);
+        localStorage.setItem(cacheKey, JSON.stringify(list));
+        if (list.length > 0) {
+          setActiveWs((prev) => (prev ? list.find((w) => w.id === prev.id) || list[0] : list[0]));
+        }
+      }
+    } catch {
+      // rely on cache
+    }
+  }
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -256,43 +293,7 @@ export default function HomePage() {
     }
   }
 
-  async function fetchWorkspaces(u: User) {
-    const cacheKey = `actos_ws_cache_${u.uid}`;
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached) as Workspace[];
-        if (parsed.length > 0) {
-          setWorkspaces(parsed);
-          setActiveWs((prev) => prev || parsed[0]);
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-
-    try {
-      const token = await u.getIdToken();
-      const res = await fetch("/api/workspaces", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const list = (data.workspaces || []) as Workspace[];
-        setWorkspaces(list);
-        localStorage.setItem(cacheKey, JSON.stringify(list));
-        if (list.length > 0) {
-          setActiveWs((prev) => (prev ? list.find((w) => w.id === prev.id) || list[0] : list[0]));
-        }
-      }
-    } catch {
-      // rely on cache
-    }
-  }
-
-useEffect(() => {
+  useEffect(() => {
     const markAppReady = () => {
       setLoadingAuth(false);
       if (typeof window !== "undefined") {
@@ -301,7 +302,6 @@ useEffect(() => {
       }
     };
 
-    // مهلة أمان قصوى لعدم التعليق نهائياً أوفلاين
     const safetyTimer = setTimeout(markAppReady, 2200);
 
     const unsub = onAuthStateChanged(auth, (currentUser) => {
@@ -317,7 +317,6 @@ useEffect(() => {
         return;
       }
 
-      // 1) تحميل فوري من الكاش المحلي قبل أي طلب شبكة
       try {
         const cachedProfile = localStorage.getItem(`actos_profile_cache_${currentUser.uid}`);
         if (cachedProfile) {
@@ -342,13 +341,11 @@ useEffect(() => {
           }
         }
       } catch {
-        // تجاهل خطأ الكاش المحلي
+        // ignore cache error
       }
 
-      // 2) إظهار الواجهة فوراً (بلا انتظار لـ Firestore أو API)
       markAppReady();
 
-      // 3) مزامنة البيانات في الخلفية عند توفر الإنترنت فقط
       if (typeof navigator !== "undefined" && !navigator.onLine) return;
 
       (async () => {
@@ -412,7 +409,7 @@ useEffect(() => {
             }
           }
         } catch {
-          // نعتمد على بيانات الكاش المحلي عند ضعف الاتصال
+          // rely on local cache
         }
 
         if (pending && (pending.username || pending.full_name)) {
@@ -452,7 +449,7 @@ useEffect(() => {
               showToast(`تم إنشاء الحساب، لكن: ${data.error}`);
             }
           } catch {
-            // يمكن تعديل اليوزر نيم لاحقاً من إعدادات الحساب
+            // ignore
           }
         }
 
@@ -674,7 +671,7 @@ useEffect(() => {
     }
   }
 
-async function handleEmailAuth(e: React.FormEvent) {
+  async function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault();
     setEmailTouched(true);
     setPasswordTouched(true);
@@ -814,18 +811,25 @@ async function handleEmailAuth(e: React.FormEvent) {
     setAiLoading(true);
     setProposedCard(null);
     try {
+      const token = user ? await user.getIdToken().catch(() => "") : "";
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 58000);
       const res = await fetch("/api/ai/propose-card", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           message: prompt,
           knowledgeRules: activeWs.knowledge_rules_text || "",
           role: activeWs.role,
         }),
+        signal: ctrl.signal,
       });
-      const data = await res.json();
-      if (res.ok) setProposedCard(data.card);
-      else showToast(data.error || "حدث خطأ أثناء التوليد");
+      clearTimeout(timer);
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.card) setProposedCard(data.card);
+      else showToast(data?.error || `تعذّر توليد الوصف (رمز ${res.status})`);
+    } catch (err) {
+      showToast(err instanceof DOMException && err.name === "AbortError" ? "انتهت مهلة الذكاء الاصطناعي، حاول مرة ثانية" : "تعذّر الاتصال بخدمة الذكاء الاصطناعي");
     } finally {
       setAiLoading(false);
     }
@@ -1039,15 +1043,13 @@ async function handleEmailAuth(e: React.FormEvent) {
     (activeWs?.role === "admin" || proposedCard.card_type === "policy_request");
 
   if (loadingAuth) {
-    return <main className="min-h-[100dvh] bg-[#0b0d12]" />;
+    return <main className="min-h-[100dvh]" />;
   }
 
-  // شاشة تسجيل الدخول — تصميم هندسي بعمودين على الكمبيوتر وأنيق على الموبايل
- if (!user) {
+  if (!user) {
     return (
-      <main className="min-h-[100dvh] bg-[#0b0d12] text-zinc-100 flex flex-col lg:grid lg:grid-cols-12 overflow-x-hidden">
-        {/* هيدر مقوّس منسدل للموبايل (يطابق حركة شاشة الدخول في الفيديو) */}
-        <div className="lg:hidden animate-header-drop bg-gradient-to-b from-[#131b2e] to-[#11141c] border-b border-white/[0.08] rounded-b-[28px] px-6 pt-8 pb-7 flex items-center justify-between gap-4 shadow-lg">
+      <main className="min-h-[100dvh] text-zinc-100 flex flex-col lg:grid lg:grid-cols-12 overflow-x-hidden">
+        <div className="lg:hidden animate-header-drop bg-gradient-to-b from-[#143240] to-[#112731] border-b border-white/[0.08] rounded-b-[28px] px-6 pt-8 pb-7 flex items-center justify-between gap-4 shadow-lg">
           <div className="space-y-1 animate-slide-inline" style={{ animationDelay: "120ms" }}>
             <h1 className="text-xl font-bold text-zinc-100 tracking-tight">
               Actos Campus<span className="text-blue-500">.</span>
@@ -1059,7 +1061,7 @@ async function handleEmailAuth(e: React.FormEvent) {
             </p>
           </div>
           <div
-            className="w-14 h-14 rounded-2xl bg-[#0b0d12] border border-white/[0.1] p-2.5 flex items-center justify-center shrink-0 animate-stagger-up"
+            className="w-14 h-14 rounded-2xl bg-[#0c1a20] border border-white/[0.1] p-2.5 flex items-center justify-center shrink-0 animate-stagger-up"
             style={{ animationDelay: "180ms" }}
           >
             <Image
@@ -1073,7 +1075,6 @@ async function handleEmailAuth(e: React.FormEvent) {
           </div>
         </div>
 
-        {/* العمود التعريفي للكمبيوتر */}
         <section
           className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-between p-12 border-l border-white/[0.07] relative overflow-hidden"
           style={{
@@ -1083,7 +1084,7 @@ async function handleEmailAuth(e: React.FormEvent) {
           }}
         >
           <div className="flex items-center gap-3 animate-header-drop">
-            <div className="w-10 h-10 rounded-xl bg-[#11141c] border border-white/[0.1] p-1.5 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#112731] border border-white/[0.1] p-1.5 flex items-center justify-center">
               <Image
                 src="/icon.svg"
                 alt="Actos Campus"
@@ -1103,7 +1104,7 @@ async function handleEmailAuth(e: React.FormEvent) {
 
           <div className="max-w-lg space-y-6 my-auto">
             <div
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#11141c] border border-white/[0.08] text-xs text-zinc-300 animate-stagger-up"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#112731] border border-white/[0.08] text-xs text-zinc-300 animate-stagger-up"
               style={{ animationDelay: "80ms" }}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
@@ -1127,7 +1128,7 @@ async function handleEmailAuth(e: React.FormEvent) {
 
             <div className="grid gap-3 pt-2">
               <div
-                className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
+                className="p-3.5 rounded-xl bg-[#112731]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
                 style={{ animationDelay: "290ms" }}
               >
                 <CalendarCheck2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
@@ -1139,7 +1140,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                 </div>
               </div>
               <div
-                className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
+                className="p-3.5 rounded-xl bg-[#112731]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
                 style={{ animationDelay: "360ms" }}
               >
                 <FileCheck2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
@@ -1151,7 +1152,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                 </div>
               </div>
               <div
-                className="p-3.5 rounded-xl bg-[#11141c]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
+                className="p-3.5 rounded-xl bg-[#112731]/90 border border-white/[0.07] flex items-start gap-3 animate-stagger-up"
                 style={{ animationDelay: "430ms" }}
               >
                 <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
@@ -1170,10 +1171,9 @@ async function handleEmailAuth(e: React.FormEvent) {
           </p>
         </section>
 
-        {/* عمود نموذج الدخول بحركة تدرّج متتابعة */}
         <section className="flex-1 lg:col-span-6 xl:col-span-5 flex items-center justify-center p-5 sm:p-8">
           <div className="w-full max-w-sm">
-            <div className="rounded-2xl border border-white/[0.08] bg-[#11141c] p-6 sm:p-7 space-y-5 shadow-xl">
+            <div className="rounded-2xl border border-white/[0.08] bg-[#112731] p-6 sm:p-7 space-y-5 shadow-xl">
               <div className="animate-stagger-up" style={{ animationDelay: "100ms" }}>
                 <h2 className="text-lg font-bold text-zinc-100">
                   {isResetMode
@@ -1192,7 +1192,11 @@ async function handleEmailAuth(e: React.FormEvent) {
               </div>
 
               {isResetMode ? (
-                <form onSubmit={handleResetPassword} className="space-y-3.5 animate-stagger-up" style={{ animationDelay: "160ms" }}>
+                <form
+                  onSubmit={handleResetPassword}
+                  className="space-y-3.5 animate-stagger-up"
+                  style={{ animationDelay: "160ms" }}
+                >
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium text-zinc-300 block">
                       البريد الإلكتروني
@@ -1204,7 +1208,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                       placeholder="name@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
+                      className="w-full px-3.5 py-2.5 rounded-lg bg-[#0c1a20] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
                     />
                   </div>
 
@@ -1245,7 +1249,7 @@ async function handleEmailAuth(e: React.FormEvent) {
               ) : (
                 <>
                   <div
-                    className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0b0d12] border border-white/[0.07] animate-stagger-up"
+                    className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0c1a20] border border-white/[0.07] animate-stagger-up"
                     style={{ animationDelay: "160ms" }}
                   >
                     <button
@@ -1253,7 +1257,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                       onClick={() => selectAccountType("admin")}
                       className={`py-2 rounded-lg text-xs font-medium transition ${
                         accountType === "admin"
-                          ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
+                          ? "bg-[#17333f] text-zinc-100 border border-white/[0.08]"
                           : "text-zinc-500 hover:text-zinc-300"
                       }`}
                     >
@@ -1264,7 +1268,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                       onClick={() => selectAccountType("personal")}
                       className={`py-2 rounded-lg text-xs font-medium transition ${
                         accountType === "personal"
-                          ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
+                          ? "bg-[#17333f] text-zinc-100 border border-white/[0.08]"
                           : "text-zinc-500 hover:text-zinc-300"
                       }`}
                     >
@@ -1274,7 +1278,10 @@ async function handleEmailAuth(e: React.FormEvent) {
 
                   <form onSubmit={handleEmailAuth} className="space-y-3">
                     {isRegister && (
-                      <div className="space-y-3 animate-stagger-up" style={{ animationDelay: "180ms" }}>
+                      <div
+                        className="space-y-3 animate-stagger-up"
+                        style={{ animationDelay: "180ms" }}
+                      >
                         <input
                           type="text"
                           required
@@ -1282,7 +1289,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                           value={regFullName}
                           onChange={(e) => setRegFullName(e.target.value)}
                           maxLength={60}
-                          className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
+                          className="w-full px-3.5 py-2.5 rounded-lg bg-[#0c1a20] border border-white/[0.09] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
                         />
                         <div className="relative">
                           <AtSign className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1297,13 +1304,12 @@ async function handleEmailAuth(e: React.FormEvent) {
                               )
                             }
                             maxLength={20}
-                            className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.09] text-sm font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
+                            className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#0c1a20] border border-white/[0.09] text-sm font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 transition"
                           />
                         </div>
                       </div>
                     )}
 
-                    {/* حقل البريد مع تحقق حي فوري مثل الفيديو */}
                     <div className="space-y-1 animate-stagger-up" style={{ animationDelay: "220ms" }}>
                       <input
                         type="email"
@@ -1315,7 +1321,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                           setEmail(e.target.value);
                           if (!emailTouched) setEmailTouched(true);
                         }}
-                        className={`w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none transition-colors duration-200 ${
+                        className={`w-full px-3.5 py-2.5 rounded-lg bg-[#0c1a20] border text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none transition-colors duration-200 ${
                           showEmailHint
                             ? "border-rose-500/70 focus:border-rose-400"
                             : "border-white/[0.09] focus:border-blue-500/70"
@@ -1328,7 +1334,6 @@ async function handleEmailAuth(e: React.FormEvent) {
                       )}
                     </div>
 
-                    {/* حقل كلمة المرور مع زر العين والتحقق الحي */}
                     <div className="space-y-1 animate-stagger-up" style={{ animationDelay: "280ms" }}>
                       <div className="relative">
                         <input
@@ -1340,7 +1345,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                             setPassword(e.target.value);
                             if (!passwordTouched) setPasswordTouched(true);
                           }}
-                          className={`w-full pl-10 pr-3.5 py-2.5 rounded-lg bg-[#0b0d12] border text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none transition-colors duration-200 ${
+                          className={`w-full pl-10 pr-3.5 py-2.5 rounded-lg bg-[#0c1a20] border text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none transition-colors duration-200 ${
                             showPasswordHint
                               ? "border-rose-500/70 focus:border-rose-400"
                               : "border-white/[0.09] focus:border-blue-500/70"
@@ -1415,14 +1420,14 @@ async function handleEmailAuth(e: React.FormEvent) {
                       <div className="w-full border-t border-white/[0.07]" />
                     </div>
                     <div className="relative flex justify-center text-[11px]">
-                      <span className="px-2.5 bg-[#11141c] text-zinc-500">أو المتابعة عبر</span>
+                      <span className="px-2.5 bg-[#112731] text-zinc-500">أو المتابعة عبر</span>
                     </div>
                   </div>
 
                   <button
                     onClick={handleGoogleLogin}
                     style={{ animationDelay: "450ms" }}
-                    className="w-full py-2.5 px-4 rounded-lg bg-[#181c27] border border-white/[0.1] text-zinc-100 font-medium text-xs sm:text-sm hover:bg-[#1f2433] active:scale-[0.985] transition flex items-center justify-center gap-2 animate-stagger-up"
+                    className="w-full py-2.5 px-4 rounded-lg bg-[#17333f] border border-white/[0.1] text-zinc-100 font-medium text-xs sm:text-sm hover:bg-[#1d3d4a] active:scale-[0.985] transition flex items-center justify-center gap-2 animate-stagger-up"
                   >
                     <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                       <path
@@ -1472,14 +1477,13 @@ async function handleEmailAuth(e: React.FormEvent) {
   }
 
   return (
-    <main className="min-h-[100dvh] bg-[#0b0d12] text-zinc-100 flex flex-col md:flex-row">
+    <main className="min-h-[100dvh] text-zinc-100 flex flex-col md:flex-row">
       {toast && (
-        <div className="fixed bottom-20 md:bottom-5 left-4 right-4 md:right-auto md:max-w-md z-50 px-4 py-2.5 rounded-xl bg-[#181c27] border border-white/[0.12] text-zinc-100 text-xs shadow-2xl text-center md:text-right">
+        <div className="fixed bottom-20 md:bottom-5 left-4 right-4 md:right-auto md:max-w-md z-50 px-4 py-2.5 rounded-xl bg-[#17333f] border border-white/[0.12] text-zinc-100 text-xs shadow-2xl text-center md:text-right">
           {toast}
         </div>
       )}
 
-      {/* سجل الإشعارات */}
       {showNotifications && (
         <div
           onClick={() => setShowNotifications(false)}
@@ -1487,7 +1491,7 @@ async function handleEmailAuth(e: React.FormEvent) {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl border border-white/[0.09] bg-[#11141c] shadow-2xl overflow-hidden mt-10 sm:mt-0"
+            className="w-full max-w-sm rounded-2xl border border-white/[0.09] bg-[#112731] shadow-2xl overflow-hidden mt-10 sm:mt-0"
           >
             <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between">
               <span className="text-xs font-semibold text-zinc-100 flex items-center gap-1.5">
@@ -1572,7 +1576,11 @@ async function handleEmailAuth(e: React.FormEvent) {
           onClose={() => setShowAccountSettings(false)}
           onNotify={showToast}
           onUpdated={({ full_name, username }) => {
-            setUserProfile((prev) => ({ ...prev, full_name, username }));
+            setUserProfile((prev) => {
+              const updated = { ...prev, full_name, username };
+              localStorage.setItem(`actos_profile_cache_${user.uid}`, JSON.stringify(updated));
+              return updated;
+            });
           }}
           onAccountDeleted={async () => {
             setShowAccountSettings(false);
@@ -1581,13 +1589,12 @@ async function handleEmailAuth(e: React.FormEvent) {
         />
       )}
 
-      {/* الشريط العلوي للموبايل */}
-      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#0b0d12]/95 backdrop-blur-md border-b border-white/[0.07] animate-header-drop">
+      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#0c1a20]/95 backdrop-blur-md border-b border-white/[0.07] animate-header-drop">
         <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
-            className="p-2 rounded-lg bg-[#11141c] border border-white/[0.08] text-zinc-200 shrink-0"
+            className="p-2 rounded-lg bg-[#112731] border border-white/[0.08] text-zinc-200 shrink-0"
             aria-label="فتح القائمة"
           >
             <Menu className="w-4 h-4" />
@@ -1615,7 +1622,7 @@ async function handleEmailAuth(e: React.FormEvent) {
               setShowNotifications(true);
               setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
             }}
-            className="relative p-2 rounded-lg bg-[#11141c] border border-white/[0.08] text-zinc-300"
+            className="relative p-2 rounded-lg bg-[#112731] border border-white/[0.08] text-zinc-300"
             aria-label="الإشعارات"
           >
             <Bell className="w-4 h-4" />
@@ -1628,7 +1635,7 @@ async function handleEmailAuth(e: React.FormEvent) {
           <button
             type="button"
             onClick={() => setActiveTab(activeTab === "ledger" ? "workspace" : "ledger")}
-            className="px-2.5 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.08] text-xs font-medium text-zinc-200"
+            className="px-2.5 py-1.5 rounded-lg bg-[#112731] border border-white/[0.08] text-xs font-medium text-zinc-200"
           >
             {activeTab === "ledger" ? "المساحة" : `خزنتي (${ledgerItems.length})`}
           </button>
@@ -1642,15 +1649,14 @@ async function handleEmailAuth(e: React.FormEvent) {
         />
       )}
 
-      {/* الشريط الجانبي */}
       <aside
-        className={`fixed inset-y-0 right-0 z-50 w-[84vw] max-w-xs bg-[#11141c] border-l border-white/[0.07] p-4 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out md:static md:w-72 md:max-w-none md:translate-x-0 ${
+        className={`fixed inset-y-0 right-0 z-50 w-[84vw] max-w-xs bg-[#112731] border-l border-white/[0.07] p-4 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out md:static md:w-72 md:max-w-none md:translate-x-0 ${
           mobileMenuOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
         }`}
       >
         <div className="flex items-center justify-between pb-3 border-b border-white/[0.07]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#0b0d12] border border-white/[0.09] p-1 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-[#0c1a20] border border-white/[0.09] p-1 flex items-center justify-center shrink-0">
               <Image
                 src="/icon.svg"
                 alt="Actos Campus"
@@ -1698,8 +1704,7 @@ async function handleEmailAuth(e: React.FormEvent) {
           </div>
         </div>
 
-        {/* بطاقة الحساب */}
-        <div className="p-3 rounded-xl bg-[#0b0d12] border border-white/[0.07] flex items-center justify-between gap-2">
+        <div className="p-3 rounded-xl bg-[#0c1a20] border border-white/[0.07] flex items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-zinc-100 truncate">
               {userProfile.full_name || user.displayName || user.email}
@@ -1714,15 +1719,14 @@ async function handleEmailAuth(e: React.FormEvent) {
               setMobileMenuOpen(false);
               setShowAccountSettings(true);
             }}
-            className="p-1.5 rounded-lg bg-[#181c27] border border-white/[0.08] text-zinc-400 hover:text-zinc-100 hover:border-white/20 shrink-0 transition"
+            className="p-1.5 rounded-lg bg-[#17333f] border border-white/[0.08] text-zinc-400 hover:text-zinc-100 hover:border-white/20 shrink-0 transition"
             title="إعدادات الحساب"
           >
             <UserCog className="w-4 h-4" />
           </button>
         </div>
 
-        {/* التنقل */}
-        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0b0d12] border border-white/[0.07]">
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-[#0c1a20] border border-white/[0.07]">
           <button
             onClick={() => {
               setActiveTab("workspace");
@@ -1730,7 +1734,7 @@ async function handleEmailAuth(e: React.FormEvent) {
             }}
             className={`py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition ${
               activeTab === "workspace"
-                ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
+                ? "bg-[#17333f] text-zinc-100 border border-white/[0.08]"
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
@@ -1743,7 +1747,7 @@ async function handleEmailAuth(e: React.FormEvent) {
             }}
             className={`py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition ${
               activeTab === "ledger"
-                ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
+                ? "bg-[#17333f] text-zinc-100 border border-white/[0.08]"
                 : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
@@ -1751,7 +1755,6 @@ async function handleEmailAuth(e: React.FormEvent) {
           </button>
         </div>
 
-        {/* قائمة المساحات */}
         <div className="space-y-1">
           <p className="text-[11px] font-medium text-zinc-500 px-1 mb-1.5">
             مساحات العمل ({workspaces.length})
@@ -1784,7 +1787,6 @@ async function handleEmailAuth(e: React.FormEvent) {
           ))}
         </div>
 
-        {/* إنشاء مساحة */}
         <form onSubmit={handleCreateWorkspace} className="space-y-2 pt-3 border-t border-white/[0.07]">
           <p className="text-[11px] font-medium text-zinc-400 flex items-center gap-1">
             <Plus className="w-3.5 h-3.5 text-blue-400" /> إنشاء مساحة جديدة
@@ -1793,14 +1795,14 @@ async function handleEmailAuth(e: React.FormEvent) {
             placeholder="اسم المادة أو الشعبة"
             value={newWsName}
             onChange={(e) => setNewWsName(e.target.value)}
-            className="w-full px-3 py-2 text-xs rounded-lg bg-[#0b0d12] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
+            className="w-full px-3 py-2 text-xs rounded-lg bg-[#0c1a20] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
           />
           <textarea
             placeholder="دستور العمل (اختياري)..."
             rows={2}
             value={newWsRules}
             onChange={(e) => setNewWsRules(e.target.value)}
-            className="w-full px-3 py-2 text-xs rounded-lg bg-[#0b0d12] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition resize-none"
+            className="w-full px-3 py-2 text-xs rounded-lg bg-[#0c1a20] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition resize-none"
           />
           {wsError && <p className="text-xs text-rose-400">{wsError}</p>}
           <button
@@ -1812,7 +1814,6 @@ async function handleEmailAuth(e: React.FormEvent) {
           </button>
         </form>
 
-        {/* انضمام بكود */}
         <form onSubmit={handleJoinWorkspace} className="space-y-2 pt-3 border-t border-white/[0.07]">
           <p className="text-[11px] font-medium text-zinc-400 flex items-center gap-1">
             <Users className="w-3.5 h-3.5 text-zinc-400" /> انضمام بكود دعوة
@@ -1822,16 +1823,17 @@ async function handleEmailAuth(e: React.FormEvent) {
               placeholder="مثال: LQZ27L"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
-              className="flex-1 min-w-0 px-3 py-2 text-xs font-mono rounded-lg bg-[#0b0d12] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 uppercase focus:outline-none focus:border-blue-500/60 transition"
+              className="flex-1 min-w-0 px-3 py-2 text-xs font-mono rounded-lg bg-[#0c1a20] border border-white/[0.08] text-zinc-100 placeholder:text-zinc-600 uppercase focus:outline-none focus:border-blue-500/60 transition"
             />
             <button
               type="submit"
-              className="px-3.5 py-2 rounded-lg bg-[#181c27] text-zinc-200 border border-white/[0.09] text-xs font-medium hover:bg-white/[0.1] shrink-0 transition"
+              className="px-3.5 py-2 rounded-lg bg-[#17333f] text-zinc-200 border border-white/[0.09] text-xs font-medium hover:bg-white/[0.1] shrink-0 transition"
             >
               دخول
             </button>
           </div>
         </form>
+
         {/* توقيع المطوّر */}
         <div className="mt-auto pt-3 border-t border-white/[0.06] text-center">
           <a
@@ -1846,18 +1848,21 @@ async function handleEmailAuth(e: React.FormEvent) {
                 يازد الأشقر
               </strong>
             </span>
-            <span className="text-[10px] font-mono text-zinc-600 group-hover:text-zinc-400 transition" dir="ltr">
+            <span
+              className="text-[10px] font-mono text-zinc-600 group-hover:text-zinc-400 transition"
+              dir="ltr"
+            >
               Yazed Alashkar
             </span>
           </a>
         </div>
       </aside>
 
-      {/* المحتوى الرئيسي */}
-<section
+      <section
         key={`${activeTab}-${wsView}-${activeWs?.id || "none"}`}
         className="flex-1 p-4 md:p-6 flex flex-col justify-between max-w-4xl mx-auto w-full min-w-0 animate-stagger-up"
-      >        {activeTab === "ledger" ? (
+      >
+        {activeTab === "ledger" ? (
           <div className="space-y-4">
             <div className="pb-4 border-b border-white/[0.07]">
               <h2 className="text-base sm:text-lg font-semibold text-zinc-100 flex items-center gap-2">
@@ -1873,7 +1878,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                 لا توجد التزامات مسجّلة بعد.
               </div>
             ) : (
-              <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-[#11141c]">
+              <div className="divide-y divide-white/[0.06] rounded-xl border border-white/[0.08] bg-[#112731]">
                 {ledgerItems.map((item) => (
                   <div
                     key={item.id}
@@ -1929,7 +1934,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                           setCopiedCode(true);
                           setTimeout(() => setCopiedCode(false), 1500);
                         }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.08] text-xs hover:border-white/20 transition"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#112731] border border-white/[0.08] text-xs hover:border-white/20 transition"
                       >
                         <strong className="font-mono text-zinc-200 tracking-wider">
                           {activeWs.invite_code}
@@ -1950,7 +1955,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                           showToast("تم نسخ رابط الدعوة المباشر");
                           setTimeout(() => setCopiedLink(false), 1800);
                         }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.08] text-zinc-300 text-xs hover:border-white/20 transition"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#112731] border border-white/[0.08] text-zinc-300 text-xs hover:border-white/20 transition"
                       >
                         {copiedLink ? (
                           <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -1963,7 +1968,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                       <button
                         type="button"
                         onClick={() => setShowSettings(true)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.08] text-zinc-300 text-xs hover:border-white/20 transition"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#112731] border border-white/[0.08] text-zinc-300 text-xs hover:border-white/20 transition"
                       >
                         <Settings className="w-3.5 h-3.5 text-zinc-400" />
                         الإعدادات
@@ -1971,14 +1976,13 @@ async function handleEmailAuth(e: React.FormEvent) {
                     </div>
                   </div>
 
-                  {/* التبديل بين بطاقات الفعل والدردشة */}
-                  <div className="grid grid-cols-2 sm:inline-flex p-1 rounded-xl bg-[#11141c] border border-white/[0.07] gap-1">
+                  <div className="grid grid-cols-2 sm:inline-flex p-1 rounded-xl bg-[#112731] border border-white/[0.07] gap-1">
                     <button
                       type="button"
                       onClick={() => setWsView("cards")}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition ${
                         wsView === "cards"
-                          ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
+                          ? "bg-[#17333f] text-zinc-100 border border-white/[0.08]"
                           : "text-zinc-500 hover:text-zinc-300"
                       }`}
                     >
@@ -1989,7 +1993,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                       onClick={() => setWsView("chat")}
                       className={`px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition ${
                         wsView === "chat"
-                          ? "bg-[#181c27] text-zinc-100 border border-white/[0.08]"
+                          ? "bg-[#17333f] text-zinc-100 border border-white/[0.08]"
                           : "text-zinc-500 hover:text-zinc-300"
                       }`}
                     >
@@ -2030,9 +2034,8 @@ async function handleEmailAuth(e: React.FormEvent) {
                     />
                   )}
 
-                  {/* معاينة البطاقة المقترحة */}
                   {proposedCard && (
-                    <div className="rounded-xl border border-blue-500/30 bg-[#11141c] p-4 sm:p-5 space-y-4">
+                    <div className="rounded-xl border border-blue-500/30 bg-[#112731] p-4 sm:p-5 space-y-4">
                       <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-white/[0.07]">
                         <span className="text-xs font-semibold text-blue-300">
                           {proposedCard.card_type === "none"
@@ -2065,7 +2068,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                             {proposedCard.payload.slots.map((s, i) => (
                               <div
                                 key={i}
-                                className="p-3 rounded-lg bg-[#0b0d12] border border-white/[0.07] text-xs"
+                                className="p-3 rounded-lg bg-[#0c1a20] border border-white/[0.07] text-xs"
                               >
                                 <p className="font-semibold text-zinc-200">{s.title}</p>
                                 <p className="text-zinc-500 font-mono">السعة: {s.capacity}</p>
@@ -2130,7 +2133,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                           </button>
                           <button
                             onClick={() => setProposedCard(null)}
-                            className="px-3.5 py-2 rounded-lg bg-[#181c27] border border-white/[0.08] text-zinc-400 text-xs hover:text-zinc-200 transition"
+                            className="px-3.5 py-2 rounded-lg bg-[#17333f] border border-white/[0.08] text-zinc-400 text-xs hover:text-zinc-200 transition"
                           >
                             إلغاء
                           </button>
@@ -2159,9 +2162,8 @@ async function handleEmailAuth(e: React.FormEvent) {
               )}
             </div>
 
-            {/* شريط الأوامر — بدون شريط تمرير أبيض وبالتفاف أنيق على الكمبيوتر */}
             {wsView === "cards" && (
-              <div className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-[#0b0d12]/95 backdrop-blur-md border-t border-white/[0.07] md:static md:mx-0 md:p-0 md:mt-6 md:border-0 md:bg-transparent space-y-2.5">
+              <div className="sticky bottom-0 z-20 -mx-4 px-4 py-3 bg-[#0c1a20]/95 backdrop-blur-md border-t border-white/[0.07] md:static md:mx-0 md:p-0 md:mt-6 md:border-0 md:bg-transparent space-y-2.5">
                 {activeWs && (
                   <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar md:flex-wrap">
                     {(activeWs.role === "admin" ? QUICK_PROMPTS_ADMIN : QUICK_PROMPTS_STUDENT).map(
@@ -2170,7 +2172,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                           key={idx}
                           type="button"
                           onClick={() => setPrompt(q)}
-                          className="shrink-0 text-[11px] px-3 py-1.5 rounded-lg bg-[#11141c] border border-white/[0.07] text-zinc-400 hover:border-blue-500/40 hover:text-zinc-200 transition"
+                          className="shrink-0 text-[11px] px-3 py-1.5 rounded-lg bg-[#112731] border border-white/[0.07] text-zinc-400 hover:border-blue-500/40 hover:text-zinc-200 transition"
                         >
                           {q}
                         </button>
@@ -2189,7 +2191,7 @@ async function handleEmailAuth(e: React.FormEvent) {
                         ? "اكتب أمراً (جلسات، تسليم مشروع، إعلان، أو طلب استثناء)..."
                         : "اختر أو أنشئ مساحة عمل أولاً..."
                     }
-                    className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-[#11141c] border border-white/[0.09] text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 disabled:opacity-40 transition"
+                    className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-[#112731] border border-white/[0.09] text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/70 disabled:opacity-40 transition"
                   />
                   <button
                     type="submit"

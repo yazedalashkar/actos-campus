@@ -112,7 +112,7 @@ export default function PwaManager() {
       )}
 
       {!dismissedBanner && (installPrompt || notifPerm === "default") && (
-        <div className="fixed top-3 left-3 z-40 hidden md:flex items-center gap-1.5 p-1 rounded-xl bg-[#11141c]/95 backdrop-blur-md border border-white/[0.09] shadow-lg">
+        <div className="fixed top-3 left-3 z-40 hidden md:flex items-center gap-1.5 p-1 rounded-xl bg-[#112731]/95 backdrop-blur-md border border-white/[0.09] shadow-lg">
           {installPrompt && (
             <button
               type="button"
@@ -126,7 +126,7 @@ export default function PwaManager() {
             <button
               type="button"
               onClick={handleEnableNotifications}
-              className="px-2.5 py-1.5 rounded-lg bg-[#181c27] text-zinc-200 text-[11px] font-medium hover:bg-white/[0.1] inline-flex items-center gap-1.5 transition"
+              className="px-2.5 py-1.5 rounded-lg bg-[#17333f] text-zinc-200 text-[11px] font-medium hover:bg-white/[0.1] inline-flex items-center gap-1.5 transition"
             >
               <Bell className="w-3 h-3 text-blue-400" /> تفعيل الإشعارات
             </button>

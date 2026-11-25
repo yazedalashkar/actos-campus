@@ -75,13 +75,13 @@ export default function SplashScreen() {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] bg-[#0b0d12] flex flex-col items-center justify-center p-6 select-none overflow-hidden ${
+      className={`fixed inset-0 z-[100] bg-[#0c1a20] flex flex-col items-center justify-center p-6 select-none overflow-hidden ${
         phase === "fade" ? "animate-splash-fade pointer-events-none" : ""
       }`}
     >
       <div className="flex flex-col items-center text-center gap-5">
         <div
-          className={`w-20 h-20 rounded-2xl bg-[#11141c] border border-white/[0.1] p-3.5 flex items-center justify-center shadow-2xl ${
+          className={`w-20 h-20 rounded-2xl bg-[#112731] border border-white/[0.1] p-3.5 flex items-center justify-center shadow-2xl ${
             isLaunching ? "animate-drive-out" : "animate-drive-in"
           }`}
         >

@@ -121,7 +121,6 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
     const clean = text.trim();
     if (!clean || sending) return;
 
-    // وضع الأوفلاين: حفظ الرسالة محلياً للرفع التلقائي عند عودة الإنترنت
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       enqueueOfflineRequest({
         url: "/api/messages",
@@ -224,10 +223,10 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
   }
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-[#111113] flex flex-col h-[calc(100dvh-250px)] min-h-[380px] md:h-[540px] overflow-hidden">
-      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between bg-[#0d0d0f]">
+    <div className="rounded-xl border border-white/[0.08] bg-[#112731] flex flex-col h-[calc(100dvh-250px)] min-h-[380px] md:h-[540px] overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/[0.07] flex items-center justify-between bg-[#0c1a20]">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-zinc-400" />
+          <MessageSquare className="w-4 h-4 text-blue-400" />
           <h3 className="text-xs font-semibold text-zinc-200">المحادثة الفورية</h3>
         </div>
         <span className="text-[11px] font-mono tabular-nums text-zinc-500">
@@ -255,8 +254,8 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
                     msg.pending
                       ? "bg-amber-950/20 border-amber-500/30 text-zinc-200"
                       : isMine
-                      ? "bg-zinc-900 border-zinc-700/80 text-zinc-100"
-                      : "bg-[#16161a] border-zinc-800 text-zinc-200"
+                      ? "bg-blue-500/10 border-blue-500/25 text-zinc-100"
+                      : "bg-[#17333f] border-white/[0.08] text-zinc-200"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -265,7 +264,7 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
                         {msg.sender_name}
                       </span>
                       {msg.sender_role === "admin" && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 shrink-0">
+                        <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-300 border border-blue-500/20 shrink-0">
                           <Shield className="w-2.5 h-2.5" /> أدمن
                         </span>
                       )}
@@ -312,19 +311,19 @@ export default function WorkspaceChat({ user, workspaceId, isAdmin, onNotify }: 
 
       <form
         onSubmit={handleSend}
-        className="p-2.5 border-t border-zinc-800 bg-[#0d0d0f] flex gap-2"
+        className="p-2.5 border-t border-white/[0.07] bg-[#0c1a20] flex gap-2"
       >
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="اكتب رسالة..."
           maxLength={1000}
-          className="flex-1 min-w-0 px-3.5 py-2 rounded-lg bg-[#161619] border border-zinc-800 text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
+          className="flex-1 min-w-0 px-3.5 py-2 rounded-lg bg-[#112731] border border-white/[0.08] text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-blue-500/60 transition"
         />
         <button
           type="submit"
           disabled={sending || !text.trim()}
-          className="px-3.5 py-2 rounded-lg bg-zinc-100 text-zinc-950 font-semibold text-xs hover:bg-white disabled:opacity-40 inline-flex items-center gap-1.5 shrink-0 transition"
+          className="px-3.5 py-2 rounded-lg bg-blue-600 text-white font-semibold text-xs hover:bg-blue-500 disabled:opacity-40 inline-flex items-center gap-1.5 shrink-0 transition"
         >
           <Send className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">إرسال</span>

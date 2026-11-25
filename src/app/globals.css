@@ -1,44 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-@layer base {
-  button:not(:disabled),
-  [role="button"]:not(:disabled) {
-    cursor: pointer;
-  }
-}
-:root {
   color-scheme: dark;
 }
 
-html,
+html {
+  background-color: #0c1a20;
+}
 body {
-  background-color: #0b0d12;
-  color: #f4f4f5;
+  color: #eee9dc;
+}
+h1, h2, h3 {
+  font-family: 'Reem Kufi', 'IBM Plex Sans Arabic', sans-serif;
 }
 
 /* سكرول بار داكن ورفيع متناسق مع التطبيق */
@@ -75,7 +48,7 @@ body {
   display: none;
 }
 
-/* === Actos Campus Motion System (Video Choreography) === */
+/* === Actos Campus Motion System === */
 @keyframes actos-drive-in {
   0% {
     opacity: 0;
@@ -205,4 +178,27 @@ body {
 
 .animate-hint-in {
   animation: actos-hint-in 0.22s ease-out forwards;
+}
+
+/* === 3D scroll scene === */
+.sc{position:fixed;inset:0;z-index:-1;pointer-events:none;perspective:1100px;overflow:hidden;--s:0;--mx:0;--my:0;opacity:.8}
+.sc .o{position:absolute;transform-style:preserve-3d;will-change:transform}
+.sc .cube{--c:120px;--h:calc(var(--c)/2);width:var(--c);height:var(--c);top:14%;left:8%;
+  transform:translate3d(calc(var(--mx)*-44px),calc(var(--my)*-30px),0) rotateX(calc(var(--s)*.35deg + var(--my)*-26deg + 20deg)) rotateY(calc(var(--s)*.5deg + var(--mx)*40deg + 25deg))}
+.sc .cube i{position:absolute;inset:0;border:1.5px solid rgb(238 233 220/.26);background:rgb(255 210 63/.05)}
+.sc .face-f{transform:translateZ(var(--h))}.sc .face-b{transform:rotateY(180deg) translateZ(var(--h))}
+.sc .face-r{transform:rotateY(90deg) translateZ(var(--h))}.sc .face-l{transform:rotateY(-90deg) translateZ(var(--h))}
+.sc .face-t{transform:rotateX(90deg) translateZ(var(--h))}.sc .face-u{transform:rotateX(-90deg) translateZ(var(--h))}
+.sc .ring{width:260px;height:260px;bottom:8%;right:6%;border:1.5px solid rgb(238 233 220/.22);border-radius:50%;
+  transform:translate3d(calc(var(--mx)*30px),calc(var(--my)*22px),0) rotateX(calc(68deg + var(--s)*.18deg + var(--my)*-14deg)) rotateZ(calc(var(--s)*.4deg))}
+.sc .ring::after{content:"";position:absolute;inset:18%;border:1.5px solid rgb(255 210 63/.35);border-radius:50%;transform:rotateY(90deg)}
+.sc .slab{width:190px;height:118px;top:54%;left:4%;border:1.5px solid rgb(255 210 63/.38);border-radius:14px;background:rgb(17 39 49/.55);
+  transform:translate3d(calc(var(--mx)*-60px),calc(var(--my)*-40px),60px) rotateY(calc(var(--s)*.3deg - 22deg + var(--mx)*18deg)) rotateX(calc(var(--s)*-.12deg + 10deg))}
+.sc .slab::before,.sc .slab::after{content:"";position:absolute;right:16px;height:6px;border-radius:3px;background:rgb(238 233 220/.35)}
+.sc .slab::before{top:28px;width:96px}.sc .slab::after{top:48px;width:64px;background:rgb(255 210 63/.7)}
+@media (max-width:767px){
+  .sc{opacity:.55}.sc .cube{--c:76px;left:-2%}.sc .ring{width:170px;height:170px}.sc .slab{width:130px;height:82px;top:66%}
+  input,textarea,select{font-size:16px !important}
+  header.sticky{padding-top:max(0.625rem,env(safe-area-inset-top))}
+  body{padding-bottom:env(safe-area-inset-bottom)}
 }

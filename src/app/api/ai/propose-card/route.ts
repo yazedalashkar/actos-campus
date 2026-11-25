@@ -3,6 +3,43 @@ import { ProposedActionCardSchema, ProposedActionCard } from "@/lib/schemas/acti
 import { generateGeminiJson } from "@/lib/gemini";
 export const maxDuration = 60;
 
+const slotAt = (h: number) => new Date(Math.ceil(Date.now() / 86400000) * 86400000 + h * 3600000).toISOString();
+
+function extractJson(raw: string): unknown {
+  const t = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    return JSON.parse(t);
+  } catch {
+    const s = t.indexOf("{");
+    const e = t.lastIndexOf("}");
+    if (s >= 0 && e > s) return JSON.parse(t.slice(s, e + 1));
+    throw new Error("الذكاء الاصطناعي لم يُرجع JSON صالحاً");
+  }
+}
+
+function stripEmpty(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(stripEmpty);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>)
+        .filter(([, x]) => x !== null && x !== "")
+        .map(([k, x]) => [k, stripEmpty(x)])
+    );
+  }
+  return v;
+}
+
+async function withRetry(args: Parameters<typeof generateGeminiJson>[0]) {
+  for (let i = 0; ; i++) {
+    try {
+      return await generateGeminiJson(args);
+    } catch (e) {
+      if (i >= 1 || !/503|UNAVAILABLE/.test(String(e))) throw e;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+}
+
 function buildSmartLocalMock(message: string, knowledgeRules: string): ProposedActionCard {
   const m = message.toLowerCase();
 
@@ -54,9 +91,9 @@ function buildSmartLocalMock(message: string, knowledgeRules: string): ProposedA
         session_group_title: "مناقشة العملي - المخبر 2",
         location: "المخبر 2",
         slots: [
-          { title: "الجلسة الأولى", starts_at: "2026-11-25T10:00:00Z", ends_at: "2026-11-25T11:30:00Z", capacity: 10 },
-          { title: "الجلسة الثانية", starts_at: "2026-11-25T11:30:00Z", ends_at: "2026-11-25T13:00:00Z", capacity: 10 },
-          { title: "الجلسة الثالثة", starts_at: "2026-11-25T13:00:00Z", ends_at: "2026-11-25T14:30:00Z", capacity: 10 },
+          { title: "الجلسة الأولى", starts_at: slotAt(10), ends_at: slotAt(11.5), capacity: 10 },
+          { title: "الجلسة الثانية", starts_at: slotAt(11.5), ends_at: slotAt(13), capacity: 10 },
+          { title: "الجلسة الثالثة", starts_at: slotAt(13), ends_at: slotAt(14.5), capacity: 10 },
         ],
       },
     };
@@ -93,6 +130,11 @@ export async function POST(req: Request) {
 التاريخ والوقت الحالي (UTC): ${today}
 دور المستخدم الحالي: ${role === "admin" ? "أدمن/أستاذ" : "طالب/عضو"}
 دستور مساحة العمل: ${knowledgeRules || "لا توجد قواعد إضافية."}
+
+قواعد الكتابة:
+- اكتب الوصف والنصوص بصياغة عربية رسمية واضحة وكاملة (المطلوب، الشروط، طريقة التسليم)، ولا تنسخ رسالة المستخدم حرفياً.
+- كل التواريخ بصيغة ISO8601 UTC وتقع في المستقبل بالنسبة للتاريخ الحالي؛ استنتج الموعد من الرسالة (غداً، الأحد القادم...) وإن لم يُذكر فاقترح موعداً منطقياً.
+- احذف أي حقل اختياري غير معروف بدل وضع null أو نص فارغ.
 
 حلّل رسالة المستخدم وأعد كائن JSON فقط (بدون أي نص إضافي أو Markdown) يطابق أحد الأنواع الخمسة التالية حصراً:
 
@@ -151,12 +193,12 @@ export async function POST(req: Request) {
 }
 `;
 
-    const cleanJson = await generateGeminiJson({
+    const cleanJson = await withRetry({
       contents: message,
       systemInstruction,
     });
 
-    const parsed = ProposedActionCardSchema.safeParse(JSON.parse(cleanJson));
+    const parsed = ProposedActionCardSchema.safeParse(stripEmpty(extractJson(cleanJson)));
     if (!parsed.success) {
       return NextResponse.json(
         { error: "مخرجات الذكاء الاصطناعي لم تطابق المخطط", details: parsed.error.flatten() },
@@ -169,11 +211,18 @@ export async function POST(req: Request) {
     const details = error instanceof Error ? error.message : String(error);
     console.error("AI Propose Error:", error);
     const isBusy = details.includes("503") || details.includes("UNAVAILABLE");
+    const hint = /API key|API_KEY|PERMISSION_DENIED|\b40[13]\b/i.test(details)
+      ? "مفتاح Gemini غير صالح أو غير مضبوط (GEMINI_API_KEY في إعدادات Vercel)."
+      : /\b404\b|NOT_FOUND|not found/i.test(details)
+      ? "اسم نموذج Gemini غير صالح أو متوقف؛ حدّثه في src/lib/gemini.ts."
+      : /\b429\b|RESOURCE_EXHAUSTED|quota/i.test(details)
+      ? "تم تجاوز حصة Gemini، انتظر قليلاً أو فعّل الفوترة."
+      : null;
     return NextResponse.json(
       {
         error: isBusy
           ? "خوادم Google Gemini مزدحمة لحظياً، جرّب الضغط مرة أخرى بعد ثوانٍ."
-          : `حدث خطأ أثناء المعالجة: ${details}`,
+          : hint ?? `حدث خطأ أثناء المعالجة: ${details}`,
         details,
       },
       { status: isBusy ? 503 : 500 }

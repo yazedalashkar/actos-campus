@@ -68,7 +68,6 @@ export async function POST(req: Request) {
 
     const { workspace_id, text } = parsed.data;
 
-    // فحص الكلمات المسيئة قبل الحفظ
     if (containsProfanity(text)) {
       return NextResponse.json(
         { error: "تم منع الرسالة لاحتوائها على ألفاظ غير لائقة." },

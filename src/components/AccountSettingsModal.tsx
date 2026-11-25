@@ -147,7 +147,7 @@ export default function AccountSettingsModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg max-h-[88dvh] flex flex-col rounded-2xl border border-white/[0.09] bg-[#11141c] shadow-2xl overflow-hidden"
+        className="w-full max-w-lg max-h-[88dvh] flex flex-col rounded-2xl border border-white/[0.09] bg-[#112731] shadow-2xl overflow-hidden"
       >
         <div className="px-5 py-4 border-b border-white/[0.07] flex items-center justify-between shrink-0">
           <h3 className="text-sm sm:text-base font-semibold text-zinc-100 flex items-center gap-2">
@@ -163,9 +163,8 @@ export default function AccountSettingsModal({
         </div>
 
         <div className="p-5 overflow-y-auto space-y-5">
-          {/* بطاقة الحساب */}
-          <div className="p-3.5 rounded-xl bg-[#0b0d12] border border-white/[0.07] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#181c27] border border-white/[0.08] flex items-center justify-center text-zinc-100 font-semibold text-sm shrink-0">
+          <div className="p-3.5 rounded-xl bg-[#0c1a20] border border-white/[0.07] flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#17333f] border border-white/[0.08] flex items-center justify-center text-zinc-100 font-semibold text-sm shrink-0">
               {(fullName || user.email || "U").slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -187,9 +186,9 @@ export default function AccountSettingsModal({
               <input
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="مثال: يزيد الأشقر"
+                placeholder="مثال: يازد الأشقر"
                 maxLength={60}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.08] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-[#0c1a20] border border-white/[0.08] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
               />
             </div>
 
@@ -207,7 +206,7 @@ export default function AccountSettingsModal({
                   }
                   placeholder="yazed.dev"
                   maxLength={20}
-                  className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#0b0d12] border border-white/[0.08] text-sm font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
+                  className="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#0c1a20] border border-white/[0.08] text-sm font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60 transition"
                 />
               </div>
               <p className="text-[11px] text-zinc-500">
@@ -239,7 +238,7 @@ export default function AccountSettingsModal({
                 type="button"
                 disabled={sendingReset}
                 onClick={handleSendPasswordReset}
-                className="px-3 py-2 rounded-lg bg-[#181c27] border border-white/[0.08] text-xs font-medium text-zinc-200 hover:border-white/20 disabled:opacity-40 inline-flex items-center gap-1.5 transition"
+                className="px-3 py-2 rounded-lg bg-[#17333f] border border-white/[0.08] text-xs font-medium text-zinc-200 hover:border-white/20 disabled:opacity-40 inline-flex items-center gap-1.5 transition"
               >
                 <KeyRound className="w-3.5 h-3.5 text-zinc-400" />
                 {sendingReset ? "جاري الإرسال..." : "تغيير كلمة المرور"}
@@ -247,7 +246,6 @@ export default function AccountSettingsModal({
             </div>
           )}
 
-          {/* حذف الحساب */}
           <div className="p-4 rounded-xl bg-rose-500/[0.05] border border-rose-500/20 space-y-3">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
@@ -265,7 +263,7 @@ export default function AccountSettingsModal({
                   value={confirmWord}
                   onChange={(e) => setConfirmWord(e.target.value)}
                   placeholder="اكتب كلمة «حذف» للتأكيد..."
-                  className="w-full px-3.5 py-2 rounded-lg bg-[#0b0d12] border border-rose-500/30 text-xs text-zinc-100 focus:outline-none focus:border-rose-400"
+                  className="w-full px-3.5 py-2 rounded-lg bg-[#0c1a20] border border-rose-500/30 text-xs text-zinc-100 focus:outline-none focus:border-rose-400"
                 />
                 {deleteError && <p className="text-xs text-rose-400">{deleteError}</p>}
                 <div className="flex items-center gap-2">

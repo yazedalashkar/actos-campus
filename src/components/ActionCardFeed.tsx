@@ -185,7 +185,7 @@ export default function ActionCardFeed({
 
   if (cards.length === 0) {
     return (
-      <div className="p-8 rounded-xl border border-dashed border-zinc-800 text-center text-xs text-zinc-500">
+      <div className="p-8 rounded-xl border border-dashed border-white/[0.09] text-center text-xs text-zinc-500">
         لا توجد بطاقات فعل منشورة في هذه المساحة بعد. اكتب أمراً في الشريط بالأسفل للبدء.
       </div>
     );
@@ -201,7 +201,7 @@ export default function ActionCardFeed({
           <button
             type="button"
             onClick={onExport}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-800 text-[11px] font-medium hover:border-zinc-600 hover:text-white transition"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#17333f] text-zinc-300 border border-white/[0.08] text-[11px] font-medium hover:border-white/20 hover:text-white transition"
             title="تصدير CSV"
           >
             <Download className="w-3 h-3" /> CSV
@@ -213,7 +213,7 @@ export default function ActionCardFeed({
             type="button"
             disabled={isBusy}
             onClick={() => onManageCard(card.id, "toggle_close")}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-900 text-zinc-300 border border-zinc-800 text-[11px] font-medium hover:border-zinc-600 hover:text-white transition disabled:opacity-40"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#17333f] text-zinc-300 border border-white/[0.08] text-[11px] font-medium hover:border-white/20 hover:text-white transition disabled:opacity-40"
           >
             {card.is_closed ? (
               <>
@@ -243,7 +243,7 @@ export default function ActionCardFeed({
             <button
               type="button"
               onClick={() => setConfirmDeleteId(null)}
-              className="px-2 py-1 rounded-md bg-zinc-900 text-zinc-400 border border-zinc-800 text-[11px] hover:text-zinc-200"
+              className="px-2 py-1 rounded-md bg-[#17333f] text-zinc-400 border border-white/[0.08] text-[11px] hover:text-zinc-200"
             >
               إلغاء
             </button>
@@ -253,7 +253,7 @@ export default function ActionCardFeed({
             type="button"
             disabled={isBusy}
             onClick={() => setConfirmDeleteId(card.id)}
-            className="p-1.5 rounded-md bg-zinc-900 text-zinc-500 border border-zinc-800 hover:text-rose-400 hover:border-rose-500/40 transition disabled:opacity-40"
+            className="p-1.5 rounded-md bg-[#17333f] text-zinc-500 border border-white/[0.08] hover:text-rose-400 hover:border-rose-500/40 transition disabled:opacity-40"
             title="حذف البطاقة"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -268,22 +268,22 @@ export default function ActionCardFeed({
       {cards.map((card, index) => {
         const isBusy = interactingCardId === card.id;
         const isClosed = Boolean(card.is_closed);
+        const cardStyle = { animationDelay: `${Math.min(index * 70, 350)}ms` };
 
-        // 1) بطاقة حجز الجلسات
         if (card.card_type === "slot_booking") {
           const cardSlots = slots.filter((s) => s.card_id === card.id);
           return (
             <article
               key={card.id}
-              className={`rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 animate-stagger-up transition-all duration-200 hover:-translate-y-0.5 ${
+              style={cardStyle}
+              className={`rounded-xl border border-white/[0.08] bg-[#112731] p-4 sm:p-5 space-y-4 transition-all duration-200 hover:border-white/[0.15] hover:-translate-y-0.5 animate-stagger-up ${
                 isClosed ? "opacity-75" : ""
               }`}
-              style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.07]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#17333f] border border-white/[0.08] text-zinc-300 text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
                     <Calendar className="w-3 h-3 text-zinc-400" /> حجز جلسات
                   </span>
                   {isClosed && (
@@ -314,7 +314,7 @@ export default function ActionCardFeed({
                   return (
                     <div
                       key={slot.id}
-                      className="p-3.5 rounded-lg bg-[#0b0b0d] border border-zinc-800 flex flex-col justify-between gap-3"
+                      className="p-3.5 rounded-lg bg-[#0c1a20] border border-white/[0.07] flex flex-col justify-between gap-3"
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2">
@@ -330,11 +330,11 @@ export default function ActionCardFeed({
                         </p>
 
                         {isAdmin && slot.booked_entries && slot.booked_entries.length > 0 && (
-                          <div className="mt-2.5 pt-2 border-t border-zinc-800/80 flex flex-wrap gap-1">
+                          <div className="mt-2.5 pt-2 border-t border-white/[0.07] flex flex-wrap gap-1">
                             {slot.booked_entries.map((entry) => (
                               <span
                                 key={entry.uid}
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-800"
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-[#17333f] text-zinc-300 border border-white/[0.08]"
                               >
                                 {entry.name}
                               </span>
@@ -352,7 +352,7 @@ export default function ActionCardFeed({
                             type="button"
                             onClick={() => onCancelSlot(slot.id)}
                             disabled={isSlotLoading}
-                            className="px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-rose-300 hover:border-rose-500/30 transition disabled:opacity-40"
+                            className="px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-[#17333f] text-zinc-400 border border-white/[0.08] hover:text-rose-300 hover:border-rose-500/30 transition disabled:opacity-40"
                           >
                             {isSlotLoading ? "..." : "إلغاء"}
                           </button>
@@ -364,8 +364,8 @@ export default function ActionCardFeed({
                           disabled={isClosed || isFull || isSlotLoading}
                           className={`w-full py-1.5 rounded-md text-xs font-semibold transition ${
                             isClosed || isFull
-                              ? "bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed"
-                              : "bg-zinc-100 text-zinc-950 hover:bg-white"
+                              ? "bg-[#17333f] text-zinc-600 border border-white/[0.07] cursor-not-allowed"
+                              : "bg-blue-600 text-white hover:bg-blue-500"
                           }`}
                         >
                           {isClosed
@@ -385,21 +385,20 @@ export default function ActionCardFeed({
           );
         }
 
-        // 2) بطاقة تسليم المشاريع
         if (card.card_type === "submission") {
           const submissions = card.submissions || [];
           const mySub = submissions.find((s) => s.user_id === currentUserId);
           return (
             <article
               key={card.id}
-              className={`rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 animate-stagger-up transition-all duration-200 hover:-translate-y-0.5 ${
+              style={cardStyle}
+              className={`rounded-xl border border-white/[0.08] bg-[#112731] p-4 sm:p-5 space-y-4 transition-all duration-200 hover:border-white/[0.15] hover:-translate-y-0.5 animate-stagger-up ${
                 isClosed ? "opacity-75" : ""
               }`}
-              style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.07]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-medium">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#17333f] border border-white/[0.08] text-zinc-300 text-[11px] font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                     <FileUp className="w-3 h-3 text-zinc-400" /> تسليم مشروع
                   </span>
@@ -446,7 +445,7 @@ export default function ActionCardFeed({
               )}
 
               {isClosed ? (
-                <p className="text-xs text-zinc-500 bg-[#0b0b0d] border border-zinc-800/80 rounded-lg p-3">
+                <p className="text-xs text-zinc-500 bg-[#0c1a20] border border-white/[0.07] rounded-lg p-3">
                   أغلق الأدمن باب التسليم لهذه البطاقة.
                 </p>
               ) : (
@@ -470,19 +469,19 @@ export default function ActionCardFeed({
                     placeholder="https://github.com/... أو https://drive.google.com/..."
                     value={links[card.id] || ""}
                     onChange={(e) => setLinks((p) => ({ ...p, [card.id]: e.target.value }))}
-                    className="sm:col-span-6 px-3 py-2 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+                    className="sm:col-span-6 px-3 py-2 rounded-lg bg-[#0c1a20] border border-white/[0.08] text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60"
                   />
                   <input
                     type="text"
                     placeholder="ملاحظة اختيارية (أسماء الفريق...)"
                     value={notes[card.id] || ""}
                     onChange={(e) => setNotes((p) => ({ ...p, [card.id]: e.target.value }))}
-                    className="sm:col-span-4 px-3 py-2 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+                    className="sm:col-span-4 px-3 py-2 rounded-lg bg-[#0c1a20] border border-white/[0.08] text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60"
                   />
                   <button
                     type="submit"
                     disabled={isBusy}
-                    className="sm:col-span-2 py-2 px-3 rounded-lg bg-zinc-100 text-zinc-950 text-xs font-semibold hover:bg-white disabled:opacity-40 flex items-center justify-center gap-1 transition"
+                    className="sm:col-span-2 py-2 px-3 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 disabled:opacity-40 flex items-center justify-center gap-1 transition"
                   >
                     <Send className="w-3 h-3" />
                     {mySub ? "تحديث" : "تسليم"}
@@ -491,14 +490,14 @@ export default function ActionCardFeed({
               )}
 
               {isAdmin && (
-                <div className="pt-3 border-t border-zinc-800/80 space-y-2">
+                <div className="pt-3 border-t border-white/[0.07] space-y-2">
                   <p className="text-xs font-medium text-zinc-400">
                     التسليمات المستلمة (<span className="font-mono">{submissions.length}</span>)
                   </p>
                   {submissions.length === 0 ? (
                     <p className="text-xs text-zinc-600">لم يسلّم أي طالب بعد.</p>
                   ) : (
-                    <div className="divide-y divide-zinc-800/80 rounded-lg border border-zinc-800 bg-[#0b0b0d]">
+                    <div className="divide-y divide-white/[0.06] rounded-lg border border-white/[0.08] bg-[#0c1a20]">
                       {submissions.map((s, idx) => (
                         <div
                           key={idx}
@@ -515,7 +514,7 @@ export default function ActionCardFeed({
                             href={s.link}
                             target="_blank"
                             rel="noreferrer"
-                            className="px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600 inline-flex items-center gap-1 shrink-0"
+                            className="px-2.5 py-1 rounded-md bg-[#17333f] border border-white/[0.08] text-zinc-300 hover:text-white hover:border-white/20 inline-flex items-center gap-1 shrink-0"
                           >
                             عرض <ExternalLink className="w-3 h-3" />
                           </a>
@@ -529,19 +528,18 @@ export default function ActionCardFeed({
           );
         }
 
-        // 3) بطاقة الإعلان التفاعلي
         if (card.card_type === "interactive_broadcast") {
           const acked = card.acknowledged_users || [];
           const hasAcked = acked.includes(currentUserId);
           return (
             <article
               key={card.id}
-              className="rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 animate-stagger-up transition-all duration-200 hover:-translate-y-0.5"
-              style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
+              style={cardStyle}
+              className="rounded-xl border border-white/[0.08] bg-[#112731] p-4 sm:p-5 space-y-4 transition-all duration-200 hover:border-white/[0.15] hover:-translate-y-0.5 animate-stagger-up"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.07]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-medium">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#17333f] border border-white/[0.08] text-zinc-300 text-[11px] font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
                     <Megaphone className="w-3 h-3 text-zinc-400" /> إعلان
                   </span>
@@ -575,7 +573,7 @@ export default function ActionCardFeed({
                 className={`w-full sm:w-auto justify-center px-4 py-2 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 ${
                   hasAcked
                     ? "bg-emerald-950/40 text-emerald-300 border border-emerald-500/25"
-                    : "bg-zinc-100 text-zinc-950 hover:bg-white"
+                    : "bg-blue-600 text-white hover:bg-blue-500"
                 }`}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -589,7 +587,6 @@ export default function ActionCardFeed({
           );
         }
 
-        // 4) بطاقة طلب الاستثناء
         if (card.card_type === "policy_request") {
           if (!isAdmin && card.requester_id && card.requester_id !== currentUserId) {
             return null;
@@ -605,12 +602,12 @@ export default function ActionCardFeed({
           return (
             <article
               key={card.id}
-              className="rounded-xl border border-zinc-800 bg-[#111113] p-4 sm:p-5 space-y-4 transition hover:border-zinc-700 animate-stagger-up transition-all duration-200 hover:-translate-y-0.5"
-              style={{ animationDelay: `${Math.min(index * 70, 350)}ms` }}
+              style={cardStyle}
+              className="rounded-xl border border-white/[0.08] bg-[#112731] p-4 sm:p-5 space-y-4 transition-all duration-200 hover:border-white/[0.15] hover:-translate-y-0.5 animate-stagger-up"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/[0.07]">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-medium">
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[#17333f] border border-white/[0.08] text-zinc-300 text-[11px] font-medium">
                     <FileQuestion className="w-3 h-3 text-zinc-400" />
                     طلب استثناء · {card.requester_name || "طالب"}
                   </span>
@@ -633,32 +630,32 @@ export default function ActionCardFeed({
               </div>
 
               {card.admin_note && (
-                <div className="p-3 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs text-zinc-300">
+                <div className="p-3 rounded-lg bg-[#0c1a20] border border-white/[0.08] text-xs text-zinc-300">
                   <strong className="text-zinc-100">ملاحظة الأدمن:</strong> {card.admin_note}
                 </div>
               )}
 
               {isAdmin && card.status === "proposed" && (
-                <div className="space-y-2 pt-3 border-t border-zinc-800/80">
+                <div className="space-y-2 pt-3 border-t border-white/[0.07]">
                   <input
                     type="text"
                     placeholder="ملاحظة اختيارية للطالب..."
                     value={adminNotes[card.id] || ""}
                     onChange={(e) => setAdminNotes((p) => ({ ...p, [card.id]: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-[#0b0b0d] border border-zinc-800 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-500"
+                    className="w-full px-3 py-2 rounded-lg bg-[#0c1a20] border border-white/[0.08] text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/60"
                   />
                   <div className="grid grid-cols-2 sm:flex gap-2">
                     <button
                       onClick={() => onResolveRequest(card.id, "approved", adminNotes[card.id] || "")}
                       disabled={isBusy}
-                      className="justify-center px-3.5 py-2 rounded-lg bg-zinc-100 text-zinc-950 text-xs font-semibold hover:bg-white inline-flex items-center gap-1.5 disabled:opacity-40"
+                      className="justify-center px-3.5 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 inline-flex items-center gap-1.5 disabled:opacity-40"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" /> موافقة
                     </button>
                     <button
                       onClick={() => onResolveRequest(card.id, "rejected", adminNotes[card.id] || "")}
                       disabled={isBusy}
-                      className="justify-center px-3.5 py-2 rounded-lg bg-zinc-900 text-rose-300 border border-zinc-800 text-xs font-semibold hover:border-rose-500/40 inline-flex items-center gap-1.5 disabled:opacity-40"
+                      className="justify-center px-3.5 py-2 rounded-lg bg-[#17333f] text-rose-300 border border-white/[0.08] text-xs font-semibold hover:border-rose-500/40 inline-flex items-center gap-1.5 disabled:opacity-40"
                     >
                       <XCircle className="w-3.5 h-3.5" /> رفض
                     </button>
